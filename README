@@ -1,0 +1,6 @@
+Installation:
+
+Copy ripecheck.tcl and iplist.txt into your scripts directory.
+Edit ripecheck.tcl and change the settings.
+
+Add ripecheck.tcl to your eggdrop.conf.
