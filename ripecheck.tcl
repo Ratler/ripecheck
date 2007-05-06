@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 0.7  Author: Stefan Wold <ratler@gmail.com>
+# ripecheck.tcl  Version: 1.0rc1  Author: Stefan Wold <ratler@gmail.com>
 ###
 # Info: 
 # This script check unresolved ip addresses against a RIPE database
@@ -22,15 +22,17 @@
 #
 ###
 # Tested:
-# eggdrop v1.6.18 GNU/Linux with tcl 8.4, http 2.5 and tcllib 1.8
-# eggdrop v1.6.17 GNU/Linux with tcl 8.4, http 2.5 and tcllib 1.8
+# eggdrop v1.6.18 GNU/Linux with tcl 8.4 and tcllib 1.8
+# eggdrop v1.6.17 GNU/Linux with tcl 8.4 and tcllib 1.8
 ###
 # TODO:
 # - Per channel settings
 # - Change configuration through dcc console
-# - Check if it possible to add code to handle lookup against LACNIC  
 ###
 # ChangeLog:
+# 1.0rc1: http dependency removed. Now connect directly over a 
+#      socket to the whois server. Still looking for 
+#      potential bugs. Also checking on how to implement a timeout.
 # 0.7: New dependency added, tcllib.
 #      Ripecheck will now try to guess which whois database
 #      to use, it should now be a lot more accurate when banning.
@@ -75,22 +77,22 @@
 
 # Space separated list of topdomains you want to ban, see example below
 #set topdomains { "ro" "ma" "tr" }
-set topdomains { }
+set topdomains { "ro" "ma" "tr" "jo" "cy" "kr" }
 
 # Space separated list of top domains to resolv to be further checked by RIPE.
 # For example .com could resolv to an ip located in the countries you wish to
 # have banned defined by topdomains.
 #set topresolv { "com" "info" "net" }
-set topresolv { }
+set topresolv { "com" "info" "net" "org"}
 
 # RIPE query timeout setting, default 5 seconds
-set rtimeout 5
+#set rtimeout 10
 
 # Path to netmask file
 set iplistfile "scripts/iplist.txt"
 
 # ---- Only edit stuff below this line if you know what you are doing ----
-set ver "0.7"
+set ver "1.0rc1"
 
 # Channel flags
 setudef flag ripecheck
@@ -98,7 +100,6 @@ setudef flag ripecheck.topchk
 setudef int ripecheck.bantime
 
 # Packages
-package require http 2.5
 package require ip
 
 # Bindings
@@ -119,7 +120,7 @@ if {[file exists $iplistfile]} {
 	    continue
 	}
 	
-	regexp {^([0-9\.\/]+)[[:space:]]+([a-z]+)} $line dummy mask whoisdb
+	regexp {^([0-9\.\/]+)[[:space:]]+([a-z\.]+)} $line dummy mask whoisdb
 	lappend maskarray $mask
 	set maskhash($mask) $whoisdb
     }
@@ -146,7 +147,7 @@ proc ripecheck_onjoin { nick host handle channel } {
     regexp ".+@(.+)" $host matches iphost
     if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
 	putloglev d * "ripecheck: DEBUG - Found numeric IP $iphost ... scanning"
-	ripecheck $iphost $iphost 1 $nick $channel $host
+	whois_connect $iphost $iphost 1 $nick $channel $host 0
     } elseif {[channel get $channel ripecheck.topchk]} {
 	putloglev d * "ripecheck: DEBUG - Trying to resolve host ..."
 
@@ -155,7 +156,7 @@ proc ripecheck_onjoin { nick host handle channel } {
 	    putloglev d * "ripecheck: DEBUG - domain: $domain ip: $iphost"
 	    if {![string compare $htopdom $domain]} {
 		putloglev d * "ripecheck: DEBUG - Matched resolve domain .$domain"
-		dnslookup $iphost ripecheck $nick $channel $host
+		dnslookup $iphost whois_connect $nick $channel $host 0
 		# Break the loop since we found a match
 		break
 	    }
@@ -163,10 +164,10 @@ proc ripecheck_onjoin { nick host handle channel } {
     }
 }
 
-proc ripecheck { ip host status nick channel orghost } {
+proc ripecheck { ip host nick channel orghost ripe } {
     global topdomains
     
-    set ripe [get_html $ip]
+    #set ripe [get_html $ip]
     set bantime [channel get $channel ripecheck.bantime]
     foreach country $topdomains {
 	if {![string compare $ripe $country]} {
@@ -184,7 +185,7 @@ proc _testripecheck { nick idx args } {
     set ip [lindex [split $args] 0]
 
     if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
-	testripecheck $ip $ip 1
+	whois_connect $ip "" $nick "" "" "" 1
     } else {
 	putloglev d * "ripecheck: DEBIG - Resolving..."
 	set htopdom [lindex [split $ip "."] end]
@@ -192,7 +193,7 @@ proc _testripecheck { nick idx args } {
 	    putloglev d * "ripecheck: DEBUG - domain: $domain ip: $ip"
 	    if {![string compare $htopdom $domain]} {
 		putloglev d * "ripecheck: DEBUG - Matched resolv domain .$domain"
-		dnslookup $ip testripecheck
+		dnslookup $ip whois_connect $nick "" "" "" 1
 		# Break the loop since we found a match
 		break
 	    }
@@ -200,10 +201,9 @@ proc _testripecheck { nick idx args } {
     }
 }
 
-proc testripecheck { ip host status } {
+proc testripecheck { ip host channel ripe } {
     global topdomains
-
-    set ripe [get_html $ip]
+    putloglev d * "ripecheck: DEBUG - Got country: $ripe"
     foreach country $topdomains {
 	if {![string compare $ripe $country]} {
 	    putloglev d * "ripecheck: DEBUG - Matched '$ripe' for $ip"
@@ -213,41 +213,48 @@ proc testripecheck { ip host status } {
     }
 }
 
-proc get_html { iphost } {
-    global rtimeout
+proc whois_connect { ip host status nick channel orghost test } {
     global maskhash
     global maskarray
-    
-    set matchmask [::ip::longestPrefixMatch $iphost $maskarray]
-    set whoisdb [string toupper $maskhash($matchmask)]
+    global rtimeout
+    set done 0
+    set matchmask [::ip::longestPrefixMatch $ip $maskarray]
+    set whoisdb [string tolower $maskhash($matchmask)]
 
     putloglev d * "ripecheck: DEBUG - Matching mask $matchmask using whois DB: $whoisdb"
 
-    set query "http://www.ripe.net/fcgi-bin/whois?form_type=simple&full_query_string=&searchtext=${iphost}&submit.x=0&submit.y=0&alt_database=$whoisdb"
-    set useragent "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.5) Gecko/20040120 Firebird/0.7"
-    set http [::http::config -useragent $useragent]
-    catch {set http [::http::geturl $query -timeout [expr 1000 * $rtimeout]]} error
-    
-    if {[::http::status $http] == "timeout"} {
-	putlog "ripecheck: Error - Connection timed out!"
-	::http::cleanup $http
-	return 0
+    if {[catch {socket -async $whoisdb 43} sock]} {
+	puts "Failed to connect to server $whoisdb!" ; return
     }
-    if {[string match -nocase "*couldn't open socket*" $error]} {
-	putlog "ripecheck: Error - Connection to ripe failed!"
-	::http::cleanup $http
-	return 0
-    }
+    fconfigure $sock -buffering line
+    fileevent $sock writable [list whois_callback $ip $host $nick $channel $orghost $sock $whoisdb $test]
+    vwait done
+}
 
-    set output [::http::data $http]
-    ::http::cleanup $http
- 
-    if {[regexp -line -nocase {country:\s*([a-z]{2,4})} $output -> line]} {
-	set line [string tolower $line]
-	putloglev d * "ripecheck: DEBUG - $whoisdb answer: $line"
-	return $line
+proc whois_callback { ip host nick channel orghost sock whoisdb test } {
+    global done
+    set done 1
+    
+    if {[string equal {} [fconfigure $sock -error]]} { 
+	puts $sock $ip
+	flush $sock
+
+	while {![eof $sock]} {
+	    set row [gets $sock]
+	    if {[regexp -line -nocase {country:\s*([a-z]{2,4})} $row -> line]} {
+		set line [string tolower $line]
+		putloglev d * "ripecheck: DEBUG - $whoisdb answer: $line Test: $test"
+		
+	    	if { $test == 1 } {
+		    testripecheck $ip $host $channel $line
+	    	} else {
+		    ripecheck $ip $host $nick $channel $orghost $line
+		}
+		break
+	    }
+	}
+	close $sock
     }
-    return ""
 }
 
 putlog "ripecheck v$ver by Ratler loaded"
