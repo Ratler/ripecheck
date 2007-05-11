@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 1.0rc1  Author: Stefan Wold <ratler@gmail.com>
+# ripecheck.tcl  Version: 1.0  Author: Stefan Wold <ratler@gmail.com>
 ###
 # Info: 
 # This script check unresolved ip addresses against a RIPE database
@@ -29,10 +29,11 @@
 # - Per channel settings
 # - Change configuration through dcc console
 ###
+
 # ChangeLog:
-# 1.0rc1: http dependency removed. Now connect directly over a 
+# 1.0: http dependency removed. Now connecting directly over a 
 #      socket to the whois server. Still looking for 
-#      potential bugs. Also checking on how to implement a timeout.
+#      potential bugs. Now support all whois databases!
 # 0.7: New dependency added, tcllib.
 #      Ripecheck will now try to guess which whois database
 #      to use, it should now be a lot more accurate when banning.
@@ -86,13 +87,13 @@ set topdomains { "ro" "ma" "tr" "jo" "cy" "kr" }
 set topresolv { "com" "info" "net" "org"}
 
 # RIPE query timeout setting, default 5 seconds
-#set rtimeout 10
+set rtimeout 5
 
 # Path to netmask file
 set iplistfile "scripts/iplist.txt"
 
 # ---- Only edit stuff below this line if you know what you are doing ----
-set ver "1.0rc1"
+set ver "1.0"
 
 # Channel flags
 setudef flag ripecheck
@@ -217,28 +218,39 @@ proc whois_connect { ip host status nick channel orghost test } {
     global maskhash
     global maskarray
     global rtimeout
-    set done 0
+
     set matchmask [::ip::longestPrefixMatch $ip $maskarray]
     set whoisdb [string tolower $maskhash($matchmask)]
+
+    if { $whoisdb == "unallocated" } {
+	putlog "ripecheck: Unallocated netmask, bailing out!"
+	return -1
+    }
+
+    # Setup timeout 
+    after $rtimeout * 1000 set ::state "timeout"
 
     putloglev d * "ripecheck: DEBUG - Matching mask $matchmask using whois DB: $whoisdb"
 
     if {[catch {socket -async $whoisdb 43} sock]} {
-	puts "Failed to connect to server $whoisdb!" ; return
+	putlog "ripecheck: ERROR: Failed to connect to server $whoisdb!" ; return -1
     }
     fconfigure $sock -buffering line
     fileevent $sock writable [list whois_callback $ip $host $nick $channel $orghost $sock $whoisdb $test]
-    vwait done
+    vwait ::state
+    if { $::state == "timeout" } {
+	putlog "ripecheck: ERROR: Connection timeout against $whoisdb"; return -1
+    }
 }
 
 proc whois_callback { ip host nick channel orghost sock whoisdb test } {
-    global done
-    set done 1
+    global ::state
     
     if {[string equal {} [fconfigure $sock -error]]} { 
 	puts $sock $ip
 	flush $sock
-
+	
+	set ::state "connected"
 	while {![eof $sock]} {
 	    set row [gets $sock]
 	    if {[regexp -line -nocase {country:\s*([a-z]{2,4})} $row -> line]} {
@@ -254,6 +266,8 @@ proc whois_callback { ip host nick channel orghost sock whoisdb test } {
 	    }
 	}
 	close $sock
+    } else {
+	set ::state "timeout"
     }
 }
 
