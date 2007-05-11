@@ -78,13 +78,13 @@
 
 # Space separated list of topdomains you want to ban, see example below
 #set topdomains { "ro" "ma" "tr" }
-set topdomains { "ro" "ma" "tr" "jo" "cy" "kr" }
+set topdomains { }
 
 # Space separated list of top domains to resolv to be further checked by RIPE.
 # For example .com could resolv to an ip located in the countries you wish to
 # have banned defined by topdomains.
 #set topresolv { "com" "info" "net" }
-set topresolv { "com" "info" "net" "org"}
+set topresolv { }
 
 # RIPE query timeout setting, default 5 seconds
 set rtimeout 5
