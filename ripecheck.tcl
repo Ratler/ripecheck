@@ -1,18 +1,29 @@
 #
-# ripecheck.tcl  Version: 2.0  Author: Stefan Wold <ratler@gmail.com>
+# ripecheck.tcl  Version: 2.1  Author: Stefan Wold <ratler@gmail.com>
 ###
 # Info: 
 # This script check unresolved ip addresses against a RIPE database
-# and ban the user if the country match your configured topdomains.
+# and ban the user if the country match your configured top domains.
+# Features:
+# * Configuration through dcc console
+# * Per channel settings
+# * Can handle top domain banning for resolvable hosts
+# * Custom bantime (global)
+# * Extra resolving for domains like info, com, net, org
+#   to find hosts that actually have an ip from a country
+#   you wish to ban
 ###
 # Require / Depends:
 # tcllib 1.8
 ###
 # Usage:
 # Simply load the script and change the topdomains you
-# wish to ban. You can test ip addresses from dcc console by
-# enabling debug output (.console +d) and running .testripecheck ip
-
+# wish to ban. 
+#
+# You can test ip addresses from dcc console
+# against your current settings by enabling debug output 
+# (.console +d) and running .testripecheck <channel> <host>
+#
 # chanset <channel> <+/->ripecheck
 # This will either enable (+) or disable (-) the script for the 
 # specified channel
@@ -64,6 +75,8 @@
 # on how to reproduce the issue.
 ### 
 # ChangeLog:
+# 2.1: Fixed a bug in .testripecheck. Forcing top domains to 
+#      lower case.
 # 2.0: I'm happy to announce that it's now possible to configure
 #      everything through the dcc console. Setting top domains and 
 #      resolve domains per channel is also available now. Code
@@ -126,7 +139,7 @@ set iplistfile "scripts/iplist.txt"
 set ripechanfile "ripecheckchan.dat"
 
 # ---- Only edit stuff below this line if you know what you are doing ----
-set ver "2.0"
+set ver "2.1"
 
 # Channel flags
 setudef flag ripecheck
@@ -263,25 +276,34 @@ proc ripecheck { ip host nick channel orghost ripe } {
     }
 }
 
-proc _testripecheck { nick idx args } {
+proc _testripecheck { nick idx arg } {
     global topresolv
 
-    set ip [lindex [split $args] 0]
+    if {[llength [split $arg]] != 2} {
+	putdcc $idx "\002RIPECHECK\002: SYNTAX: .testripecheck <channel> <host>"; return 0
+    }
+    
+    foreach {channel ip} $arg {break}
+    set ip [string tolower $ip]
 
-    if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
-	whois_connect $ip "" $nick "" "" "" 1
-    } else {
-	putloglev d * "ripecheck: DEBIG - Resolving..."
-	set htopdom [lindex [split $ip "."] end]
-	foreach domain $topresolv($channel) {
-	    putloglev d * "ripecheck: DEBUG - domain: $domain ip: $ip"
-	    if {![string compare $htopdom $domain]} {
-		putloglev d * "ripecheck: DEBUG - Matched resolv domain .$domain"
-		dnslookup $ip whois_connect $nick $channel "" "" 1
-		# Break the loop since we found a match
-		break
+    if {[validchan $channel]} {
+	if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
+	    whois_connect $ip "" ""  $nick $channel "" 1
+	} else {
+	    putloglev d * "ripecheck: DEBIG - Resolving..."
+	    set htopdom [lindex [split $ip "."] end]
+	    foreach domain $topresolv($channel) {
+		putloglev d * "ripecheck: DEBUG - channel: $channel domain: $domain ip: $ip top domain: $htopdom"
+		if {![string compare $htopdom $domain]} {
+		    putloglev d * "ripecheck: DEBUG - Matched resolve domain .$domain for $channel"
+		    dnslookup $ip whois_connect $nick $channel "" "" 1
+		    # Break the loop since we found a match
+		    break
+		}
 	    }
 	}
+    } else {
+	putdcc $idx "\002RIPECHECK\002: Invalid channel $channel"
     }
 }
 
@@ -290,7 +312,7 @@ proc testripecheck { ip host channel ripe } {
     putloglev d * "ripecheck: DEBUG - Got country: $ripe"
     foreach country $chanarr($channel) {
 	if {![string compare $ripe $country]} {
-	    putloglev d * "ripecheck: DEBUG - Matched '$ripe' for $ip"
+	    putloglev d * "ripecheck: DEBUG - Matched '$ripe' for $ip on channel $channel."
 	    # Break the loop since we found a match
 	    break
 	}
@@ -371,6 +393,8 @@ proc _+ripetopresolv { nick idx arg } {
     }
     
     foreach {channel topdom} $arg {break}
+
+    set topdom [string tolower $tipdom]
     
     if {[validchan $channel]} {
 	# It's pointless to set a resolv domain if no domains have been added for banning on the 
@@ -412,6 +436,9 @@ proc _-ripetopresolv { nick idx arg } {
     }
     
     foreach {channel topdom} $arg {break}
+
+    set topdom [string tolower $topdom]
+
     if {[validchan $channel]} {
 	if {[info exists topresolv($channel)]} {
 	    putloglev d * "ripecheck: DEBUG - topresolv($channel) exists"
@@ -465,6 +492,8 @@ proc _+ripetopdom { nick idx arg } {
     
     foreach {channel topdom} $arg {break}
 
+    set topdom [string tolower $topdom]
+
     if {[validchan $channel]} {
 	# If data exist extract into a list
 	if {[info exists chanarr($channel)]} {
@@ -499,6 +528,9 @@ proc _-ripetopdom { nick idx arg } {
     }
     
     foreach {channel topdom} $arg {break}
+
+    set topdom [string tolower $topdom]
+
     if {[validchan $channel]} {
 	if {[info exists chanarr($channel)]} {
 	    putloglev d * "ripecheck: DEBUG - chanarr($channel) exists"
