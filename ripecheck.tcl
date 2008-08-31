@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 2.1  Author: Stefan Wold <ratler@gmail.com>
+# ripecheck.tcl  Version: 2.2  Author: Stefan Wold <ratler@gmail.com>
 ###
 # Info: 
 # This script check unresolved ip addresses against a RIPE database
@@ -65,8 +65,8 @@
 # 
 ###
 # Tested:
+# eggdrop v1.6.19 GNU/Linux with tcl 8.4 and tcllib 1.8
 # eggdrop v1.6.18 GNU/Linux with tcl 8.4 and tcllib 1.8
-# eggdrop v1.6.17 GNU/Linux with tcl 8.4 and tcllib 1.8
 ###
 # BUGS?!
 # There might be some bugs in the save settings function.
@@ -75,6 +75,7 @@
 # on how to reproduce the issue.
 ### 
 # ChangeLog:
+# 2.2: Updated iplist.txt with netmask changes
 # 2.1: Fixed a bug in .testripecheck. Forcing top domains to 
 #      lower case.
 # 2.0: I'm happy to announce that it's now possible to configure
@@ -107,7 +108,7 @@
 # 0.2: First release (not public)
 ###
 # LICENSE:
-# Copyright (C) 2006, 2007  Stefan Wold <ratler@gmail.com>
+# Copyright (C) 2006 - 2008  Stefan Wold <ratler@gmail.com>
 #
 # This code comes with ABSOLUTELY NO WARRANTY
 #                                                                           
@@ -139,7 +140,7 @@ set iplistfile "scripts/iplist.txt"
 set ripechanfile "ripecheckchan.dat"
 
 # ---- Only edit stuff below this line if you know what you are doing ----
-set ver "2.1"
+set ver "2.2"
 
 # Channel flags
 setudef flag ripecheck
