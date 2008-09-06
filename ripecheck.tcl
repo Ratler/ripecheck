@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 2.2  Author: Stefan Wold <ratler@gmail.com>
+# ripecheck.tcl  Version: 2.2  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info: 
 # This script check unresolved ip addresses against a RIPE database
@@ -9,9 +9,9 @@
 # * Per channel settings
 # * Can handle top domain banning for resolvable hosts
 # * Custom bantime (global)
-# * Extra resolving for domains like info, com, net, org
+# * Support extra resolving for domains like info, com, net, org
 #   to find hosts that actually have an ip from a country
-#   you wish to ban
+#   you wish to ban.
 ###
 # Require / Depends:
 # tcllib 1.8
@@ -69,9 +69,8 @@
 # eggdrop v1.6.18 GNU/Linux with tcl 8.4 and tcllib 1.8
 ###
 # BUGS?!
-# There might be some bugs in the save settings function.
 # If you discover any problems please send an e-mail
-# to ratler@gmail.com with as detailed information as possible
+# to ratler@stderr.eu with as detailed information as possible
 # on how to reproduce the issue.
 ### 
 # ChangeLog:
@@ -108,7 +107,7 @@
 # 0.2: First release (not public)
 ###
 # LICENSE:
-# Copyright (C) 2006 - 2008  Stefan Wold <ratler@gmail.com>
+# Copyright (C) 2006 - 2008  Stefan Wold <ratler@stderr.eu>
 #
 # This code comes with ABSOLUTELY NO WARRANTY
 #                                                                           
