@@ -1,8 +1,24 @@
+Requirements: 
+* Eggdrop >= 1.6.17
+* tcllib >= 1.8
+
 Installation:
+1) Copy ripcheck.tcl and iplist.txt to your scripts directory
 
-Copy ripecheck.tcl and iplist.txt into your scripts directory.
-Edit ripecheck.tcl and change paths for the iplist.txt file or
-the configuration file if necessary. Standard settings should
-work just fine.
+2) (Optional, defaults should suffice) Edit ripecheck.tcl and 
+   modify path to iplist.txt and settings file
 
-Add ripecheck.tcl to your eggdrop.conf.
+3) Add 'source scripts/ripecheck.tcl' without the quotes in the
+   end of your eggdrop.conf. Then rehash or restart your eggdrop
+
+That's it!
+
+Question or problems?
+* Contact ratler _at_ stderr.eu or talk with me online on UnderNET or
+  freenode, nick Ratler.
+
+
+For latest snapshots of ripecheck visit:
+http://stderr.eu/git/?p=ripecheck.git;a=summary
+or
+git clone git://stderr.eu/ripecheck.git
