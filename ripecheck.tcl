@@ -1,7 +1,7 @@
 #
-# ripecheck.tcl  Version: 2.2  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 2.3  Author: Stefan Wold <ratler@stderr.eu>
 ###
-# Info: 
+# Info:
 # This script check unresolved ip addresses against a RIPE database
 # and ban the user if the country match your configured top domains.
 # Features:
@@ -17,15 +17,15 @@
 # tcllib 1.8
 ###
 # Usage:
-# Simply load the script and change the topdomains you
-# wish to ban. 
+# Load the script and change the topdomains you
+# wish to ban.
 #
 # You can test ip addresses from dcc console
-# against your current settings by enabling debug output 
+# against your current settings by enabling debug output
 # (.console +d) and running .testripecheck <channel> <host>
 #
 # chanset <channel> <+/->ripecheck
-# This will either enable (+) or disable (-) the script for the 
+# This will either enable (+) or disable (-) the script for the
 # specified channel
 #
 # chanset <channel> ripecheck.bantime <number>
@@ -42,10 +42,10 @@
 # Enable (+) or disable (-) public commands (!ripecheck)
 #
 # +ripetopresolv <channel> <resolvdomain>
-# Add a top domain that you want to resolve for further 
+# Add a top domain that you want to resolve for further
 # ripe checking. It's possible that domains like com, info,
-# org could be from a country that is banned in the top 
-# domain list.  
+# org could be from a country that is banned in the top
+# domain list.
 # Example: .+ripetopresolv #channel com
 #
 # -ripetopresolv <channel> <resolvdomain>
@@ -62,30 +62,31 @@
 #
 # ripesettings
 # List current channel settings
-# 
+#
 ###
 # Tested:
-# eggdrop v1.6.19 GNU/Linux with tcl 8.4 and tcllib 1.8
-# eggdrop v1.6.18 GNU/Linux with tcl 8.4 and tcllib 1.8
+# eggdrop v1.6.19 GNU/Linux with tcl 8.5 and tcllib 1.10
 ###
 # BUGS?!
 # If you discover any problems please send an e-mail
 # to ratler@stderr.eu with as detailed information as possible
 # on how to reproduce the issue.
-### 
+###
 # ChangeLog:
+# 2.3: Updated ip delegation list. Fixed a typo.
+#      Reindented the code.
 # 2.2: Updated iplist.txt with netmask changes
-# 2.1: Fixed a bug in .testripecheck. Forcing top domains to 
+# 2.1: Fixed a bug in .testripecheck. Forcing top domains to
 #      lower case.
 # 2.0: I'm happy to announce that it's now possible to configure
-#      everything through the dcc console. Setting top domains and 
+#      everything through the dcc console. Setting top domains and
 #      resolve domains per channel is also available now. Code
-#      added to prevent configuration loss, not fool 
+#      added to prevent configuration loss, not fool
 #      proof though.
 # 1.1: New option for top domain banning based on configured
 #      top domains. Added public !ripecheck <host> command.
-# 1.0: http dependency removed. Now connecting directly over a 
-#      socket to the whois server. Still looking for 
+# 1.0: http dependency removed. Now connecting directly over a
+#      socket to the whois server. Still looking for
 #      potential bugs. Now support all whois databases!
 # 0.7: New dependency added, tcllib.
 #      Ripecheck will now try to guess which whois database
@@ -103,26 +104,26 @@
 #      Added channel flags so it's possible to enable/disable
 #      ripecheck per channel.
 # 0.4: Changed to using http package instead of sockets.
-#      Added configuration option for ban time 
+#      Added configuration option for ban time
 # 0.2: First release (not public)
 ###
 # LICENSE:
 # Copyright (C) 2006 - 2008  Stefan Wold <ratler@stderr.eu>
 #
 # This code comes with ABSOLUTELY NO WARRANTY
-#                                                                           
-# This program is free software; you can redistribute it and/or modify      
-# it under the terms of the GNU General Public License as published by      
-# the Free Software Foundation; either version 2 of the License, or         
-# (at your option) any later version.                                       
-#                                                                           
-# This program is distributed in the hope that it will be useful,           
-# but WITHOUT ANY WARRANTY; without even the implied warranty of            
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             
-# GNU General Public License for more details.                              
-#                                                                           
-# You should have received a copy of the GNU General Public License         
-# along with this program; if not, write to the Free Software               
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 # RIPE Country Checker
@@ -139,7 +140,7 @@ set iplistfile "scripts/iplist.txt"
 set ripechanfile "ripecheckchan.dat"
 
 # ---- Only edit stuff below this line if you know what you are doing ----
-set ver "2.2"
+set ver "2.3"
 
 # Channel flags
 setudef flag ripecheck
@@ -202,11 +203,11 @@ proc _ripecheck_onjoin { nick host handle channel } {
 
     # Only run if channel is defined
     if {![channel get $channel ripecheck]} { return 0 }
-    
+
     # Exclude ops, voice, friends
-    if {[matchattr $handle fov|fov $channel]} { 
+    if {[matchattr $handle fov|fov $channel]} {
         putloglev d * "ripecheck: $nick is on exempt list"
-        return 0 
+        return 0
     }
 
     # Check if channel has a domain list or complain about it and then abort
@@ -217,7 +218,7 @@ proc _ripecheck_onjoin { nick host handle channel } {
 
     # Get IP/Host part
     regexp ".+@(.+)" $host matches iphost
-    
+
     # Top domain ban if enabled
     if {[channel get $channel ripecheck.topban]} {
         set htopdom [lindex [split $iphost "."] end]
@@ -260,7 +261,7 @@ proc _ripecheck_onjoin { nick host handle channel } {
 
 proc ripecheck { ip host nick channel orghost ripe } {
     global chanarr
-    
+
     #set ripe [get_html $ip]
     set bantime [channel get $channel ripecheck.bantime]
     foreach country $chanarr($channel) {
@@ -279,7 +280,7 @@ proc _testripecheck { nick idx arg } {
     if {[llength [split $arg]] != 2} {
         putdcc $idx "\002RIPECHECK\002: SYNTAX: .testripecheck <channel> <host>"; return 0
     }
-    
+
     foreach {channel ip} $arg {break}
     set ip [string tolower $ip]
 
@@ -336,7 +337,7 @@ proc whois_connect { ip host status nick channel orghost test } {
         return -1
     }
 
-    # Setup timeout 
+    # Setup timeout
     after $rtimeout * 1000 set ::state "timeout"
 
     putloglev d * "ripecheck: DEBUG - Matching mask $matchmask using whois DB: $whoisdb"
@@ -354,18 +355,18 @@ proc whois_connect { ip host status nick channel orghost test } {
 
 proc whois_callback { ip host nick channel orghost sock whoisdb test } {
     global ::state
-    
-    if {[string equal {} [fconfigure $sock -error]]} { 
+
+    if {[string equal {} [fconfigure $sock -error]]} {
         puts $sock $ip
         flush $sock
-        
+
         set ::state "connected"
         while {![eof $sock]} {
             set row [gets $sock]
             if {[regexp -line -nocase {country:\s*([a-z]{2,4})} $row -> line]} {
                 set line [string tolower $line]
                 putloglev d * "ripecheck: DEBUG - $whoisdb answer: $line Test: $test"
-                
+
                 if { $test == 1 } {
                     testripecheck $ip $host $channel $line
                 } elseif { $test == 2 } {
@@ -388,13 +389,13 @@ proc _+ripetopresolv { nick idx arg } {
     if {[llength [split $arg]] != 2} {
         putdcc $idx "\002RIPECHECK\002: SYNTAX: .+ripetopresolv <channel> <resolvdomain>"; return 0
     }
-    
+
     foreach {channel topdom} $arg {break}
 
-    set topdom [string tolower $tipdom]
-    
+    set topdom [string tolower $topdom]
+
     if {[validchan $channel]} {
-        # It's pointless to set a resolv domain if no domains have been added for banning on the 
+        # It's pointless to set a resolv domain if no domains have been added for banning on the
         # current channel.
         if {[info exists chanarr($channel)]} {
             # If data exist extract into a list
@@ -431,7 +432,7 @@ proc _-ripetopresolv { nick idx arg } {
     if {[llength [split $arg]] != 2} {
         putdcc $idx "\002RIPECHECK\002: SYNTAX: .-ripetopresolv <channel> <resolvdomain>"; return 0
     }
-    
+
     foreach {channel topdom} $arg {break}
 
     set topdom [string tolower $topdom]
@@ -453,7 +454,7 @@ proc _-ripetopresolv { nick idx arg } {
             } else {
                 putdcc $idx "\002RIPECHECK\002: Resolve domain '$topdom' doesn't exist on $channel"; return 0
             }
-            
+
         } else {
             putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."
         }
@@ -469,7 +470,7 @@ proc _-ripetopresolv { nick idx arg } {
 # List channel and top resolv domains
 proc _ripesettings { nick idx arg } {
     global chanarr topresolv
-    
+
     if {[array size chanarr] > 0 && [array size topresolv] > 0} {
         putdcc $idx "\002RIPECHECK\002: ---------------- CURRENT SETTINGS ----------------"
         foreach channel [array names chanarr] {
@@ -486,7 +487,7 @@ proc _+ripetopdom { nick idx arg } {
     if {[llength [split $arg]] != 2} {
         putdcc $idx "\002RIPECHECK\002: SYNTAX: .+ripetopdom <channel> <topdomain>"; return 0
     }
-    
+
     foreach {channel topdom} $arg {break}
 
     set topdom [string tolower $topdom]
@@ -523,7 +524,7 @@ proc _-ripetopdom { nick idx arg } {
     if {[llength [split $arg]] != 2} {
         putdcc $idx "\002RIPECHECK\002: SYNTAX: .-ripetopdom <channel> <topdomain>"; return 0
     }
-    
+
     foreach {channel topdom} $arg {break}
 
     set topdom [string tolower $topdom]
@@ -545,7 +546,7 @@ proc _-ripetopdom { nick idx arg } {
             } else {
                 putdcc $idx "\002RIPECHECK\002: Domain '$topdom' doesn't exist on $channel"; return 0
             }
-            
+
         } else {
             putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."
         }
@@ -572,7 +573,7 @@ proc write_settings { thisarray thatarray } {
         }
     }
     set fp [open $ripechanfile w]
-    
+
     foreach key [array names data] {
         puts $fp "$key:[join $data($key) ,]"
     }

@@ -24,8 +24,8 @@
 78.0.0.0/7	whois.ripe.net
 80.0.0.0/4      whois.ripe.net          # => 95.255.255.25
 96.0.0.0/6	whois.arin.net
-114.0.0.0/7	whois.apnic.net
-116.0.0.0/6	whois.apnic.net
+110.0.0.0/7 whois.apnic.net
+112.0.0.0/5 whois.apnic.net
 121.128.0.0/10	whois.nic.or.kr
 125.128.0.0/11	whois.nic.or.kr
 120.0.0.0/6	whois.apnic.net
@@ -83,7 +83,7 @@
 169.208.0.0/12	whois.apnic.net
 171.16.0.0/12	whois.ripe.net
 171.32.0.0/15	whois.ripe.net
-# 173 -> 187 reserved
+# 175 -> 187 reserved
 186.0.0.0/7     whois.lacnic.net
 188.0.0.0/8	whois.ripe.net # transferred from ARIN to to RIPE
 189.0.0.0/8	whois.lacnic.net
@@ -106,8 +106,8 @@
 192.0.0.0/8	whois.arin.net	# the swamp
 193.0.0.0/8	whois.ripe.net
 194.0.0.0/7	whois.ripe.net
-196.0.0.0/8	whois.afrinic.net
-196.0.0.0/6	whois.arin.net
+196.0.0.0/7	whois.afrinic.net
+196.0.0.0/7	whois.arin.net
 
 200.17.0.0/16	whois.nic.br
 200.18.0.0/15	whois.nic.br
