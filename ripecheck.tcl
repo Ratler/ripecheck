@@ -63,6 +63,9 @@
 # ripesettings
 # List current channel settings
 #
+# help ripecheck
+# View ripecheck command help page through dcc console
+#
 ###
 # Tested:
 # eggdrop v1.6.19 GNU/Linux with tcl 8.5 and tcllib 1.10
@@ -71,41 +74,6 @@
 # If you discover any problems please send an e-mail
 # to ratler@stderr.eu with as detailed information as possible
 # on how to reproduce the issue.
-###
-# ChangeLog:
-# 2.3: Updated ip delegation list. Fixed a typo.
-#      Reindented the code.
-# 2.2: Updated iplist.txt with netmask changes
-# 2.1: Fixed a bug in .testripecheck. Forcing top domains to
-#      lower case.
-# 2.0: I'm happy to announce that it's now possible to configure
-#      everything through the dcc console. Setting top domains and
-#      resolve domains per channel is also available now. Code
-#      added to prevent configuration loss, not fool
-#      proof though.
-# 1.1: New option for top domain banning based on configured
-#      top domains. Added public !ripecheck <host> command.
-# 1.0: http dependency removed. Now connecting directly over a
-#      socket to the whois server. Still looking for
-#      potential bugs. Now support all whois databases!
-# 0.7: New dependency added, tcllib.
-#      Ripecheck will now try to guess which whois database
-#      to use, it should now be a lot more accurate when banning.
-#      Whois databases supported now are:
-#      RIPE, APNIC, ARIN, AFRINIC, VERIO
-# 0.6: New function to resolve some topdomains and then
-#      do a ripecheck. Topdomains like .com .info might
-#      match countries in your topdomain list.
-#      It's also possible to change timeout for the RIPE
-#      query, recommended setting is default 5 seconds.
-#      Saving a few cpu cycles by breaking loops when a match
-#      was found.
-# 0.5: Added better error handling during the http query.
-#      Added channel flags so it's possible to enable/disable
-#      ripecheck per channel.
-# 0.4: Changed to using http package instead of sockets.
-#      Added configuration option for ban time
-# 0.2: First release (not public)
 ###
 # LICENSE:
 # Copyright (C) 2006 - 2008  Stefan Wold <ratler@stderr.eu>
@@ -160,6 +128,7 @@ bind dcc m|ov -ripetopdom _-ripetopdom
 bind dcc m|ov +ripetopresolv _+ripetopresolv
 bind dcc m|ov -ripetopresolv _-ripetopresolv
 bind dcc -|- ripesettings _ripesettings
+bind dcc -|- help _ripe_help_dcc
 bind pub -|- !ripecheck _pubripecheck
 
 # Global variables
@@ -581,6 +550,45 @@ proc write_settings { thisarray thatarray } {
         puts $fp "topresolv:$key:[join $tresolv($key) ,]"
     }
     close $fp
+}
+
+proc _ripe_help_dcc { hand idx args } {
+    global ver
+
+    switch -- $args {
+        ripecheck {
+            putidx $idx "### \002ripecheck v$ver\002 by Ratler ###"; putidx $idx ""
+            putidx $idx "### \002chanset <channel> <+/->ripecheck\002"
+            putidx $idx "    Enable (+) or disable (-) the script for specified channel"
+            putidx $idx "### \002chanset <channel> ripecheck.bantime <minutes>\002"
+            putidx $idx "    For how long should the ban be active in minutes"
+            putidx $idx "### \002chanset <channel> <+/->ripecheck.topchk\002"
+            putidx $idx "    Enable (+) or disable (-) top domain resolve check"
+            putidx $idx "### \002chanset <channel> <+/->ripecheck.topban\002"
+            putidx $idx "    Enable (+) or disable (-) top domain banning based on the topdomain list"
+            putidx $idx "### \002chanset <channel> <+/->ripecheck.pubcmd\002"
+            putidx $idx "    Enable (+) or disable (-) public commands (!ripecheck)"
+            putidx $idx "### \002+ripetopresolv <channel> <resolvdomain>\002"
+            putidx $idx "    Add a top domain that you want to resolve for further"
+            putidx $idx "    ripe checking. It's possible that domains like com, info, org"
+            putidx $idx "    could be from a country that is banned in the top domain list."
+            putidx $idx "    Example: .+ripetopresolv #channel com"
+            putidx $idx "### \002-ripetopresolv <channel> <resolvdomain>\002"
+            putidx $idx "    Remove a top resolve domain from the channel that you no longer"
+            putidx $idx "    wish to resolve for further ripe checking."
+            putidx $idx "### \002ripetopdom <channel> <topdomain>\002"
+            putidx $idx "    Add a top domain for the channel that you wish to ban"
+            putidx $idx "    Example: .+ripetopdom #channel ro"
+            putidx $idx "### \002-ripetopdom <channel> <topdomain>\002"
+            putidx $idx "    Remove a top domain from the channel that you no longer"
+            putidx $idx "    wish to ban"
+            putidx $idx "### \002ripesettings\002"
+            putidx $idx "    List current channel settings"
+            putidx $idx "### \002help ripecheck\002"
+            putidx $idx "    This help page you're currently viewing"
+        }
+        default {*dcc:help $hand $idx [join $args]; return 0}
+    }
 }
 
 putlog "ripecheck v$ver by Ratler loaded"
