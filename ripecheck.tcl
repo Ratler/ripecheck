@@ -7,7 +7,7 @@
 # Features:
 # * Configuration through dcc console
 # * Per channel settings
-# * Can handle top domain banning for resolvable hosts
+# * Can handle top domain banning for name based hosts
 # * Custom bantime (global)
 # * Support extra resolving for domains like info, com, net, org
 #   to find hosts that actually have an ip from a country
@@ -247,7 +247,7 @@ proc _testripecheck { nick idx arg } {
     global topresolv
 
     if {[llength [split $arg]] != 2} {
-        putdcc $idx "\002RIPECHECK\002: SYNTAX: .testripecheck <channel> <host>"; return 0
+        _ripe_help_dcc $nick $idx testripecheck; return 0
     }
 
     foreach {channel ip} $arg {break}
@@ -355,8 +355,9 @@ proc whois_callback { ip host nick channel orghost sock whoisdb test } {
 # Add top resolv domain for channel and write settings to file
 proc _+ripetopresolv { nick idx arg } {
     global chanarr topresolv
+
     if {[llength [split $arg]] != 2} {
-        putdcc $idx "\002RIPECHECK\002: SYNTAX: .+ripetopresolv <channel> <resolvdomain>"; return 0
+        _ripe_help_dcc $nick $idx +ripetopresolv; return 0
     }
 
     foreach {channel topdom} $arg {break}
@@ -399,7 +400,7 @@ proc _-ripetopresolv { nick idx arg } {
     global chanarr topresolv
 
     if {[llength [split $arg]] != 2} {
-        putdcc $idx "\002RIPECHECK\002: SYNTAX: .-ripetopresolv <channel> <resolvdomain>"; return 0
+        _ripe_help_dcc $nick $idx -ripetopresolv; return 0
     }
 
     foreach {channel topdom} $arg {break}
@@ -453,8 +454,9 @@ proc _ripesettings { nick idx arg } {
 # Add top domain to channel and write settings to file
 proc _+ripetopdom { nick idx arg } {
     global chanarr topresolv
+
     if {[llength [split $arg]] != 2} {
-        putdcc $idx "\002RIPECHECK\002: SYNTAX: .+ripetopdom <channel> <topdomain>"; return 0
+        _ripe_help_dcc $nick $idx +ripetopdom; return 0
     }
 
     foreach {channel topdom} $arg {break}
@@ -491,7 +493,7 @@ proc _-ripetopdom { nick idx arg } {
     global chanarr topresolv
 
     if {[llength [split $arg]] != 2} {
-        putdcc $idx "\002RIPECHECK\002: SYNTAX: .-ripetopdom <channel> <topdomain>"; return 0
+        _ripe_help_dcc $nick $idx -ripetopdom; return 0
     }
 
     foreach {channel topdom} $arg {break}
@@ -576,7 +578,7 @@ proc _ripe_help_dcc { hand idx args } {
             putidx $idx "### \002-ripetopresolv <channel> <resolvdomain>\002"
             putidx $idx "    Remove a top resolve domain from the channel that you no longer"
             putidx $idx "    wish to resolve for further ripe checking."
-            putidx $idx "### \002ripetopdom <channel> <topdomain>\002"
+            putidx $idx "### \002+ripetopdom <channel> <topdomain>\002"
             putidx $idx "    Add a top domain for the channel that you wish to ban"
             putidx $idx "    Example: .+ripetopdom #channel ro"
             putidx $idx "### \002-ripetopdom <channel> <topdomain>\002"
@@ -584,8 +586,37 @@ proc _ripe_help_dcc { hand idx args } {
             putidx $idx "    wish to ban"
             putidx $idx "### \002ripesettings\002"
             putidx $idx "    List current channel settings"
+            putidx $idx "### \002testripecheck <channel> <host>\002"
+            putidx $idx "    Test your settings against a specific channel, don't"
+            putidx $idx "    forget to enable debug console to see the output"
+            putidx $idx "    from testripecheck, ie .console +d"
             putidx $idx "### \002help ripecheck\002"
             putidx $idx "    This help page you're currently viewing"
+        }
+        +ripetopresolv { 
+            putidx $idx "Usage: \002+ripetopresolv <channel> <resolvdomain>\002"
+            putidx $idx "       Add a top domain that you want to resolve for further"
+            putidx $idx "       ripe checking. It's possible that domains like com, info, org"
+            putidx $idx "       could be from a country that is banned in the top domain list."
+            putidx $idx "       Example: .+ripetopresolv #channel com"
+        }
+        -ripetopresolv { 
+            putidx $idx "Usage: \002-ripetopresolv <channel> <resolvdomain>\002"
+            putidx $idx "       Remove a top resolve domain from the channel that you no longer"
+            putidx $idx "       wish to resolve for further ripe checking."
+        }
+        +ripetopdom {
+            putidx $idx "Usage: \002+ripetopdom <channel> <topdomain>\002"
+            putidx $idx "       Add a top domain for the channel that you wish to ban"
+            putidx $idx "       Example: .+ripetopdom #channel ro"
+        }
+        -ripetopdom {
+            putidx $idx "Usage: \002-ripetopdom <channel> <topdomain>\002"
+            putidx $idx "       Remove a top domain from the channel that you no longer"
+            putidx $idx "       wish to ban"
+        }
+        testripecheck {
+            putidx $idx "Usage: \002testripecheck <channel> <host>\002"
         }
         default {*dcc:help $hand $idx [join $args]; return 0}
     }
