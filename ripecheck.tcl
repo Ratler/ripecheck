@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 2.3  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 2.4  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -41,16 +41,17 @@
 # chanset <channel> <+/->ripecheck.pubcmd
 # Enable (+) or disable (-) public commands (!ripecheck)
 #
-# +ripetopresolv <channel> <resolvdomain>
-# Add a top domain that you want to resolve for further
-# ripe checking. It's possible that domains like com, info,
-# org could be from a country that is banned in the top
-# domain list.
-# Example: .+ripetopresolv #channel com
+# +ripetopresolv <channel> <pattern>
+# Add a top domain or regexp pattern that you want to resolve for
+# further ripe checking. It's possible that domains like com, info, org
+# could be from a country that is banned in the top domain list.
+# Example (match .com): .+ripetopresolv #channel com
+# Example (match everything): .+ripetopresolv #channel .*
+# Example (match .a-f*): .+ripetopresolv #channel \[a-f\]*
 #
-# -ripetopresolv <channel> <resolvdomain>
-# Remove a top resolve domain from the channel that you no longer
-# wish to resolve for further ripe checking.
+# -ripetopresolv <channel> <pattern>
+# Remove a top resolve domain or regexp pattern from the channel that
+# you no longer wish to resolve.
 #
 # +ripetopdom <channel> <topdomain>
 # Add a top domain for the channel that you wish to ban
@@ -76,7 +77,7 @@
 # on how to reproduce the issue.
 ###
 # LICENSE:
-# Copyright (C) 2006 - 2008  Stefan Wold <ratler@stderr.eu>
+# Copyright (C) 2006 - 2009  Stefan Wold <ratler@stderr.eu>
 #
 # This code comes with ABSOLUTELY NO WARRANTY
 #
@@ -101,6 +102,9 @@
 # RIPE query timeout setting, default 5 seconds
 set rtimeout 5
 
+# Set console output flag, for debug purpose (default d, ie .console +d)
+set conflag d
+
 # Path to netmask file
 set iplistfile "scripts/iplist.txt"
 
@@ -108,7 +112,6 @@ set iplistfile "scripts/iplist.txt"
 set ripechanfile "ripecheckchan.dat"
 
 # ---- Only edit stuff below this line if you know what you are doing ----
-set ver "2.3"
 
 # Channel flags
 setudef flag ripecheck
@@ -132,6 +135,7 @@ bind dcc -|- help _ripe_help_dcc
 bind pub -|- !ripecheck _pubripecheck
 
 # Global variables
+set ver "2.4"
 set maskarray [list]
 
 # Parse ip list file
@@ -147,7 +151,7 @@ if {[file exists $iplistfile]} {
         set maskhash($mask) $whoisdb
     }
     close $fid
-    putloglev d * "ripecheck: DEBUG - IP file loaded with [llength $maskarray] netmasks"
+    putloglev $conflag * "ripecheck: DEBUG - IP file loaded with [llength $maskarray] netmasks"
 }
 
 # Read channel settings - only at startup
@@ -162,20 +166,20 @@ if {[file exists $ripechanfile]} {
         }
     }
     close $fchan
-    putloglev d * "ripecheck: DEBUG - Channel file loaded with settings for [array size chanarr] channel(s)"
-    putloglev d * "ripecheck: DEBUG - Top resolv domains loaded for [array size topresolv] channel(s)"
+    putloglev $conflag * "ripecheck: DEBUG - Channel file loaded with settings for [array size chanarr] channel(s)"
+    putloglev $conflag * "ripecheck: DEBUG - Top resolv domains loaded for [array size topresolv] channel(s)"
 }
 
 # Functions
 proc _ripecheck_onjoin { nick host handle channel } {
-    global topresolv chanarr
+    global topresolv chanarr conflag
 
     # Only run if channel is defined
     if {![channel get $channel ripecheck]} { return 0 }
 
     # Exclude ops, voice, friends
     if {[matchattr $handle fov|fov $channel]} {
-        putloglev d * "ripecheck: $nick is on exempt list"
+        putloglev $conflag "ripecheck: $nick is on exempt list"
         return 0
     }
 
@@ -204,7 +208,7 @@ proc _ripecheck_onjoin { nick host handle channel } {
 
     # Only run RIPE check on numeric IP unless ripecheck.topchk is enabled
     if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
-        putloglev d * "ripecheck: DEBUG - Found numeric IP $iphost ... scanning"
+        putloglev $conflag * "ripecheck: DEBUG - Found numeric IP $iphost ... scanning"
         whois_connect $iphost $iphost 1 $nick $channel $host 0
     } elseif {[channel get $channel ripecheck.topchk]} {
         # Check if channel has a resolv domain list or complain about it and then abort
@@ -213,13 +217,13 @@ proc _ripecheck_onjoin { nick host handle channel } {
             return 0
         }
 
-        putloglev d * "ripecheck: DEBUG - Trying to resolve host ..."
+        putloglev $conflag * "ripecheck: DEBUG - Trying to resolve host ..."
 
         set htopdom [lindex [split $iphost "."] end]
         foreach domain $topresolv($channel) {
-            putloglev d * "ripecheck: DEBUG - domain: $domain ip: $iphost"
-            if {![string compare $htopdom $domain]} {
-                putloglev d * "ripecheck: DEBUG - Matched resolve domain .$domain"
+            putloglev $conflag * "ripecheck: DEBUG - domain: $domain ip: $iphost"
+            if {[regexp "^$domain$" $htopdom]} {
+                putloglev $conflag * "ripecheck: DEBUG - Matched resolve domain '$domain'"
                 dnslookup $iphost whois_connect $nick $channel $host 0
                 # Break the loop since we found a match
                 break
@@ -231,7 +235,6 @@ proc _ripecheck_onjoin { nick host handle channel } {
 proc ripecheck { ip host nick channel orghost ripe } {
     global chanarr
 
-    #set ripe [get_html $ip]
     set bantime [channel get $channel ripecheck.bantime]
     foreach country $chanarr($channel) {
         if {![string compare $ripe $country]} {
@@ -244,7 +247,7 @@ proc ripecheck { ip host nick channel orghost ripe } {
 }
 
 proc _testripecheck { nick idx arg } {
-    global topresolv
+    global topresolv conflag
 
     if {[llength [split $arg]] != 2} {
         _ripe_help_dcc $nick $idx testripecheck; return 0
@@ -257,12 +260,12 @@ proc _testripecheck { nick idx arg } {
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
             whois_connect $ip "" ""  $nick $channel "" 1
         } else {
-            putloglev d * "ripecheck: DEBIG - Resolving..."
+            putloglev $conflag * "ripecheck: DEBIG - Resolving..."
             set htopdom [lindex [split $ip "."] end]
             foreach domain $topresolv($channel) {
-                putloglev d * "ripecheck: DEBUG - channel: $channel domain: $domain ip: $ip top domain: $htopdom"
-                if {![string compare $htopdom $domain]} {
-                    putloglev d * "ripecheck: DEBUG - Matched resolve domain .$domain for $channel"
+                putloglev $conflag * "ripecheck: DEBUG - channel: $channel domain: $domain ip: $ip top domain: $htopdom"
+                if {[regexp "^$domain$" $htopdom]} {
+                    putloglev $conflag * "ripecheck: DEBUG - Matched resolve domain '$domain' for $channel"
                     dnslookup $ip whois_connect $nick $channel "" 1
                     # Break the loop since we found a match
                     break
@@ -275,11 +278,11 @@ proc _testripecheck { nick idx arg } {
 }
 
 proc testripecheck { ip host channel ripe } {
-    global chanarr
-    putloglev d * "ripecheck: DEBUG - Got country: $ripe"
+    global chanarr conflag
+    putloglev $conflag * "ripecheck: DEBUG - Got country: $ripe"
     foreach country $chanarr($channel) {
         if {![string compare $ripe $country]} {
-            putloglev d * "ripecheck: DEBUG - Matched '$ripe' for $ip on channel $channel."
+            putloglev $conflag * "ripecheck: DEBUG - Matched '$ripe' for $ip on channel $channel."
             # Break the loop since we found a match
             break
         }
@@ -296,7 +299,7 @@ proc _pubripecheck { nick host handle channel ip } {
 }
 
 proc whois_connect { ip host status nick channel orghost test } {
-    global maskhash maskarray rtimeout
+    global maskhash maskarray rtimeout conflag
 
     set matchmask [::ip::longestPrefixMatch $ip $maskarray]
     set whoisdb [string tolower $maskhash($matchmask)]
@@ -309,7 +312,7 @@ proc whois_connect { ip host status nick channel orghost test } {
     # Setup timeout
     after $rtimeout * 1000 set ::state "timeout"
 
-    putloglev d * "ripecheck: DEBUG - Matching mask $matchmask using whois DB: $whoisdb"
+    putloglev $conflag * "ripecheck: DEBUG - Matching mask $matchmask using whois DB: $whoisdb"
 
     if {[catch {socket -async $whoisdb 43} sock]} {
         putlog "ripecheck: ERROR: Failed to connect to server $whoisdb!" ; return -1
@@ -323,7 +326,7 @@ proc whois_connect { ip host status nick channel orghost test } {
 }
 
 proc whois_callback { ip host nick channel orghost sock whoisdb test } {
-    global ::state
+    global ::state conflag
 
     if {[string equal {} [fconfigure $sock -error]]} {
         puts $sock $ip
@@ -334,7 +337,7 @@ proc whois_callback { ip host nick channel orghost sock whoisdb test } {
             set row [gets $sock]
             if {[regexp -line -nocase {country:\s*([a-z]{2,4})} $row -> line]} {
                 set line [string tolower $line]
-                putloglev d * "ripecheck: DEBUG - $whoisdb answer: $line Test: $test"
+                putloglev $conflag * "ripecheck: DEBUG - $whoisdb answer: $line Test: $test"
 
                 if { $test == 1 } {
                     testripecheck $ip $host $channel $line
@@ -354,7 +357,7 @@ proc whois_callback { ip host nick channel orghost sock whoisdb test } {
 
 # Add top resolv domain for channel and write settings to file
 proc _+ripetopresolv { nick idx arg } {
-    global chanarr topresolv
+    global chanarr topresolv conflag
 
     if {[llength [split $arg]] != 2} {
         _ripe_help_dcc $nick $idx +ripetopresolv; return 0
@@ -370,7 +373,7 @@ proc _+ripetopresolv { nick idx arg } {
         if {[info exists chanarr($channel)]} {
             # If data exist extract into a list
             if {[info exists topresolv($channel)]} {
-                putloglev d * "ripecheck: DEBUG - topresolv exists"
+                putloglev $conflag * "ripecheck: DEBUG - topresolv exists"
                 set dlist $topresolv($channel)
                 # top domain doesn't exist so lets add it
                 if {[lsearch -exact $dlist $topdom] == -1 } {
@@ -380,7 +383,7 @@ proc _+ripetopresolv { nick idx arg } {
                     putdcc $idx "\002RIPECHECK\002: Resolve domain '$topdom' already exist on $channel"; return 0
                 }
             } else {
-                putloglev d * "ripecheck: DEBUG - topresolv doesn't exist"
+                putloglev $conflag * "ripecheck: DEBUG - topresolv doesn't exist"
                 set dlist [list $topdom]
                 set topresolv($channel) $dlist
             }
@@ -397,7 +400,7 @@ proc _+ripetopresolv { nick idx arg } {
 
 # Remove resolve domain from channel and write settings to file
 proc _-ripetopresolv { nick idx arg } {
-    global chanarr topresolv
+    global chanarr topresolv conflag
 
     if {[llength [split $arg]] != 2} {
         _ripe_help_dcc $nick $idx -ripetopresolv; return 0
@@ -409,7 +412,7 @@ proc _-ripetopresolv { nick idx arg } {
 
     if {[validchan $channel]} {
         if {[info exists topresolv($channel)]} {
-            putloglev d * "ripecheck: DEBUG - topresolv($channel) exists"
+            putloglev $conflag * "ripecheck: DEBUG - topresolv($channel) exists"
             set dlist $topresolv($channel)
             # resolve domain exist so lets remove it
             set dlist_index [lsearch -exact $dlist $topdom]
@@ -453,7 +456,7 @@ proc _ripesettings { nick idx arg } {
 
 # Add top domain to channel and write settings to file
 proc _+ripetopdom { nick idx arg } {
-    global chanarr topresolv
+    global chanarr topresolv conflag
 
     if {[llength [split $arg]] != 2} {
         _ripe_help_dcc $nick $idx +ripetopdom; return 0
@@ -466,7 +469,7 @@ proc _+ripetopdom { nick idx arg } {
     if {[validchan $channel]} {
         # If data exist extract into a list
         if {[info exists chanarr($channel)]} {
-            putloglev d * "ripecheck: DEBUG - chanarr exists"
+            putloglev $conflag * "ripecheck: DEBUG - chanarr exists"
             set dlist $chanarr($channel)
             # top domain doesn't exist so lets add it
             if {[lsearch -exact $dlist $topdom] == -1 } {
@@ -476,7 +479,7 @@ proc _+ripetopdom { nick idx arg } {
                 putdcc $idx "\002RIPECHECK\002: Domain '$topdom' already exist on $channel"; return 0
             }
         } else {
-            putloglev d * "ripecheck: DEBUG - chanarr doesn't exist"
+            putloglev $conflag * "ripecheck: DEBUG - chanarr doesn't exist"
             set dlist [list $topdom]
             set chanarr($channel) $dlist
         }
@@ -490,7 +493,7 @@ proc _+ripetopdom { nick idx arg } {
 
 # Remove top domain for channel and write settings to file
 proc _-ripetopdom { nick idx arg } {
-    global chanarr topresolv
+    global chanarr topresolv conflag
 
     if {[llength [split $arg]] != 2} {
         _ripe_help_dcc $nick $idx -ripetopdom; return 0
@@ -502,7 +505,7 @@ proc _-ripetopdom { nick idx arg } {
 
     if {[validchan $channel]} {
         if {[info exists chanarr($channel)]} {
-            putloglev d * "ripecheck: DEBUG - chanarr($channel) exists"
+            putloglev $conflag * "ripecheck: DEBUG - chanarr($channel) exists"
             set dlist $chanarr($channel)
             # top domain doesn't exist so lets add it
             set dlist_index [lsearch -exact $dlist $topdom]
@@ -570,14 +573,16 @@ proc _ripe_help_dcc { hand idx args } {
             putidx $idx "    Enable (+) or disable (-) top domain banning based on the topdomain list"
             putidx $idx "### \002chanset <channel> <+/->ripecheck.pubcmd\002"
             putidx $idx "    Enable (+) or disable (-) public commands (!ripecheck)"
-            putidx $idx "### \002+ripetopresolv <channel> <resolvdomain>\002"
-            putidx $idx "    Add a top domain that you want to resolve for further"
-            putidx $idx "    ripe checking. It's possible that domains like com, info, org"
+            putidx $idx "### \002+ripetopresolv <channel> <pattern>\002"
+            putidx $idx "    Add a top domain or regexp pattern that you want to resolve for"
+            putidx $idx "    further ripe checking. It's possible that domains like com, info, org"
             putidx $idx "    could be from a country that is banned in the top domain list."
-            putidx $idx "    Example: .+ripetopresolv #channel com"
-            putidx $idx "### \002-ripetopresolv <channel> <resolvdomain>\002"
-            putidx $idx "    Remove a top resolve domain from the channel that you no longer"
-            putidx $idx "    wish to resolve for further ripe checking."
+            putidx $idx "    Example (match .com): .+ripetopresolv #channel com"
+            putidx $idx "    Example (match everything): .+ripetopresolv #channel .*" 
+            putidx $idx "    Example (match .a-f*): .+ripetopresolv #channel \[a-f\]*"
+            putidx $idx "### \002-ripetopresolv <channel> <pattern>\002"
+            putidx $idx "    Remove a top resolve domain or regexp pattern from the channel that"
+            putidx $idx "    you no longer wish to resolve."
             putidx $idx "### \002+ripetopdom <channel> <topdomain>\002"
             putidx $idx "    Add a top domain for the channel that you wish to ban"
             putidx $idx "    Example: .+ripetopdom #channel ro"
@@ -594,16 +599,18 @@ proc _ripe_help_dcc { hand idx args } {
             putidx $idx "    This help page you're currently viewing"
         }
         +ripetopresolv { 
-            putidx $idx "Usage: \002+ripetopresolv <channel> <resolvdomain>\002"
-            putidx $idx "       Add a top domain that you want to resolve for further"
-            putidx $idx "       ripe checking. It's possible that domains like com, info, org"
+            putidx $idx "Usage: \002+ripetopresolv <channel> <pattern>\002"
+            putidx $idx "       Add a top domain or regexp pattern that you want to resolve for"
+            putidx $idx "       further ripe checking. It's possible that domains like com, info, org"
             putidx $idx "       could be from a country that is banned in the top domain list."
-            putidx $idx "       Example: .+ripetopresolv #channel com"
+            putidx $idx "       Example (match .com): .+ripetopresolv #channel com"
+            putidx $idx "       Example (match everything): .+ripetopresolv #channel .*" 
+            putidx $idx "       Example (match .a-f*): .+ripetopresolv #channel \[a-f\]*"
         }
         -ripetopresolv { 
-            putidx $idx "Usage: \002-ripetopresolv <channel> <resolvdomain>\002"
-            putidx $idx "       Remove a top resolve domain from the channel that you no longer"
-            putidx $idx "       wish to resolve for further ripe checking."
+            putidx $idx "Usage: \002-ripetopresolv <channel> <pattern>\002"
+            putidx $idx "       Remove a top resolve domain or regexp pattern from the channel that"
+            putidx $idx "       you no longer wish to resolve."
         }
         +ripetopdom {
             putidx $idx "Usage: \002+ripetopdom <channel> <topdomain>\002"
