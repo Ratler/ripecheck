@@ -294,7 +294,7 @@ proc _testripecheck { nick idx arg } {
                 putloglev d * "ripecheck: DEBUG - channel: $channel domain: $domain ip: $ip top domain: $htopdom"
                 if {![string compare $htopdom $domain]} {
                     putloglev d * "ripecheck: DEBUG - Matched resolve domain .$domain for $channel"
-                    dnslookup $ip whois_connect $nick $channel "" "" 1
+                    dnslookup $ip whois_connect $nick $channel "" 1
                     # Break the loop since we found a match
                     break
                 }
