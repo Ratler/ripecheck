@@ -195,7 +195,7 @@ proc _ripecheck_onjoin { nick host handle channel } {
 
     # Exclude ops, voice, friends
     if {[matchattr $handle fov|fov $channel]} {
-        putloglev $conflag "ripecheck: $nick is on exempt list"
+        putloglev $conflag * "ripecheck: $nick is on exempt list"
         return 0
     }
 
