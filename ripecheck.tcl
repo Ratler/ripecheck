@@ -8,10 +8,12 @@
 # * Configuration through dcc console
 # * Per channel settings
 # * Can handle top domain banning for name based hosts
-# * Custom bantime (global)
+# * Custom bantime
 # * Support extra resolving for domains like info, com, net, org
 #   to find hosts that actually have an ip from a country
-#   you wish to ban.
+#   you wish to ban. Now also support regexp pattern matching.
+# * Custom ban messages
+# * Now has help pages, see .help ripecheck
 ###
 # Require / Depends:
 # tcllib 1.8
