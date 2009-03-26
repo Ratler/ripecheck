@@ -1,4 +1,14 @@
 ChangeLog:
+2.4: * Updated ip delegation list
+     * Fixed a minor bug in .testripecheck function that caused
+       wrong number of arguments being sent to whois_connect
+     * Added help page through the dcc console, see .help ripecheck
+     * Added usage information for individual commands, see .help +ripetopdom
+     * <+/->ripetopresolv now support regexp pattern matching
+     * Now possible to change default console output channel, default 'd'
+     * Added support for custom ban messages, includes keyword substitution 
+       support like %domain%, %ripe%  and %nick%, see .help ripebanr
+	
 2.3: Updated ip delegation list. Fixed a typo.
      Reindented the code.
 2.2: Updated iplist.txt with netmask changes

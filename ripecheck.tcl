@@ -47,7 +47,7 @@
 # could be from a country that is banned in the top domain list.
 # Example (match .com): .+ripetopresolv #channel com
 # Example (match everything): .+ripetopresolv #channel .*
-# Example (match .a-f*): .+ripetopresolv #channel \[a-f\]*
+# Example (match .a-f*): .+ripetopresolv #channel [a-f]*
 #
 # -ripetopresolv <channel> <pattern>
 # Remove a top resolve domain or regexp pattern from the channel that
@@ -60,6 +60,17 @@
 # -ripetopdom <channel> <topdomain>
 # Remove a top domain from the channel that you no longer
 # wish to ban
+#
+# ripebanr <banreason|bantopreson> [text]
+# Set custom ban reasons for 'banreason' and 'bantopreason'.
+# To restore the default message run the above command without [text]"
+# The [text] support substitutional keywords, current keywords are:
+# %domain% = Topdomain used in 'bantopreason'"
+# %ripe% = Country code from the whois server, used in 'banreason'"
+# %nick% = Nickname for the user being banned, used in both 'banreason' and 'bantopreason'"
+# Example (topdomain reason): .ripebanr bantopreason Hello '%nick%, TLD '%domain%' is not allowed here"
+# Example (standard reason): .ripebanr banreason Sorry '%ripe' not allowed in here"
+# Example (restore default ban reason): .ripebanr banreason"
 #
 # ripesettings
 # List current channel settings
@@ -130,6 +141,7 @@ bind dcc m|ov +ripetopdom _+ripetopdom
 bind dcc m|ov -ripetopdom _-ripetopdom
 bind dcc m|ov +ripetopresolv _+ripetopresolv
 bind dcc m|ov -ripetopresolv _-ripetopresolv
+bind dcc m|ov ripebanr _ripebanreason
 bind dcc -|- ripesettings _ripesettings
 bind dcc -|- help _ripe_help_dcc
 bind pub -|- !ripecheck _pubripecheck
@@ -163,6 +175,8 @@ if {[file exists $ripechanfile]} {
             set chanarr([lindex [split $line :] 0]) [split [lindex [split $line :] 1] ,]
         } elseif {[regexp {^topresolv} $line]} {
             set topresolv([lindex [split $line :] 1]) [split [lindex [split $line :] 2] ,]
+        } elseif {[regexp {^config} $line]} {
+            set ripeconfig([lindex [split $line :] 1]) [split [lindex [split $line :] 2] ,]
         }
     }
     close $fchan
@@ -172,7 +186,7 @@ if {[file exists $ripechanfile]} {
 
 # Functions
 proc _ripecheck_onjoin { nick host handle channel } {
-    global topresolv chanarr conflag
+    global topresolv chanarr conflag ripeconfig
 
     # Only run if channel is defined
     if {![channel get $channel ripecheck]} { return 0 }
@@ -197,9 +211,16 @@ proc _ripecheck_onjoin { nick host handle channel } {
         set htopdom [lindex [split $iphost "."] end]
         foreach domain $chanarr($channel) {
             if {![string compare $htopdom $domain]} {
+                set template [list %nick% $nick \
+                                  %domain% $domain]
                 set bantime [channel get $channel ripecheck.bantime]
+                if {[info exists ripeconfig(bantopreason)]} {
+                    set banreason [ripe_replace $ripeconfig(bantopreason) $template]
+                } else {
+                    set banreason "RIPE Country Check: Top domain .$domain is banned."
+                }
                 putlog "ripecheck: Matched top domain '$domain' banning *!*.$domain for $bantime minute(s)"
-                newchanban $channel "*!*@*.$domain" ripecheck "RIPE Country Check: Top domain .$domain is banned." $bantime
+                newchanban $channel "*!*@*.$domain" ripecheck $banreason $bantime
                 # Break the loop since we found a match
                 break
             }
@@ -233,13 +254,20 @@ proc _ripecheck_onjoin { nick host handle channel } {
 }
 
 proc ripecheck { ip host nick channel orghost ripe } {
-    global chanarr
+    global chanarr ripeconfig
 
     set bantime [channel get $channel ripecheck.bantime]
     foreach country $chanarr($channel) {
         if {![string compare $ripe $country]} {
+            set template [list %nick% $nick \
+                              %ripe% $ripe]
+            if {[info exists ripeconfig(banreason)]} {
+                set banreason [ripe_replace $ripeconfig(banreason) $template]
+            } else {
+                set banreason "RIPE Country Check: Matched .$ripe"
+            }
             putlog "ripecheck: Matched country '$ripe' banning $nick!$orghost for $bantime minute(s)"
-            newchanban $channel "*!*@$host" ripecheck "RIPE Country Check: Matched .$ripe" $bantime
+            newchanban $channel "*!*@$host" ripecheck $banreason $bantime
             # Break the loop since we found a match
             break
         }
@@ -362,7 +390,7 @@ proc _+ripetopresolv { nick idx arg } {
     if {[llength [split $arg]] != 2} {
         _ripe_help_dcc $nick $idx +ripetopresolv; return 0
     }
-
+    
     foreach {channel topdom} $arg {break}
 
     set topdom [string tolower $topdom]
@@ -388,7 +416,7 @@ proc _+ripetopresolv { nick idx arg } {
                 set topresolv($channel) $dlist
             }
             # Write to the ripecheck channel file
-            write_settings [array get chanarr] [array get topresolv]
+            write_settings
             putdcc $idx "\002RIPECHECK\002: Top resolve domain '$topdom' successfully added to $channel."
         } else {
             putdcc $idx "\002RIPECHECK\002: You need to add a top domain for $channel before adding a resolve domain."
@@ -432,7 +460,7 @@ proc _-ripetopresolv { nick idx arg } {
             putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."
         }
         # Write to the ripecheck channel file
-        write_settings [array get chanarr] [array get topresolv]
+        write_settings
         putdcc $idx "\002RIPECHECK\002: Resolve domain '$topdom' successfully removed from $channel."
 
     } else {
@@ -442,7 +470,7 @@ proc _-ripetopresolv { nick idx arg } {
 
 # List channel and top resolv domains
 proc _ripesettings { nick idx arg } {
-    global chanarr topresolv
+    global chanarr topresolv ripeconfig
 
     if {[array size chanarr] > 0 && [array size topresolv] > 0} {
         putdcc $idx "\002RIPECHECK\002: ---------------- CURRENT SETTINGS ----------------"
@@ -451,6 +479,12 @@ proc _ripesettings { nick idx arg } {
         }
     } else {
         putdcc $idx "\002RIPECHECK\002: No channel settings made yet."
+    }
+    if {[info exists ripeconfig(banreason)]} {
+        putdcc $idx "\002RIPECHECK\002: Ban reason: '[join $ripeconfig(banreason)]'"
+    }
+    if {[info exists ripeconfig(bantopreason)]} {
+        putdcc $idx "\002RIPECHECK\002: Ban TLD reason: '[join $ripeconfig(bantopreason)]'"
     }
 }
 
@@ -484,7 +518,7 @@ proc _+ripetopdom { nick idx arg } {
             set chanarr($channel) $dlist
         }
         # Write to the ripecheck channel file
-        write_settings [array get chanarr] [array get topresolv]
+        write_settings
         putdcc $idx "\002RIPECHECK\002: Top domain '$topdom' successfully added to $channel."
     } else {
         putdcc $idx "\002RIPECHECK\002: Invalid channel: $channel"
@@ -525,7 +559,7 @@ proc _-ripetopdom { nick idx arg } {
             putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."
         }
         # Write to the ripecheck channel file
-        write_settings [array get chanarr] [array get topresolv]
+        write_settings
         putdcc $idx "\002RIPECHECK\002: Top domain '$topdom' successfully removed from $channel."
 
     } else {
@@ -533,11 +567,40 @@ proc _-ripetopdom { nick idx arg } {
     }
 }
 
-proc write_settings { thisarray thatarray } {
-    global ripechanfile
+proc _ripebanreason { nick idx arg } {
+    global ripeconfig
 
-    array set data $thisarray
-    array set tresolv $thatarray
+    if {!([llength [split $arg]] > 0)} {
+        _ripe_help_dcc $nick $idx ripebanr; return 0
+    }
+
+    set type [lindex [split $arg] 0]
+    set text [lrange [split $arg] 1 end]
+
+    if {($type == "banreason") || ($type == "bantopreason") } {
+        # Lets clear the ban reason
+        if {$text == "" && [info exists ripeconfig($type)]} {
+            unset ripeconfig($type)
+            putdcc $idx "\002RIPECHECK\002: Successfully removed '$type'"
+        } elseif {$text != ""} {
+            set ripeconfig($type) $text
+            putdcc $idx "\002RIPECHECK\002: Successfully added '$type' value '$text'"
+        }
+        write_settings
+    } else {
+        _ripe_help_dcc $nick $idx ripebanr; return 0
+    }
+}
+
+proc ripe_replace { text subs } {
+    foreach {arg1 arg2} $subs {
+        regsub -all -- $arg1 $text $arg2 text
+    }
+    return $text
+}
+
+proc write_settings { } {
+    global ripechanfile chanarr topresolv ripeconfig
 
     # Backup file in case something goes wrong
     if {[file exists $ripechanfile]} {
@@ -548,11 +611,14 @@ proc write_settings { thisarray thatarray } {
     }
     set fp [open $ripechanfile w]
 
-    foreach key [array names data] {
-        puts $fp "$key:[join $data($key) ,]"
+    foreach key [array names chanarr] {
+        puts $fp "$key:[join $chanarr($key) ,]"
     }
-    foreach key [array names tresolv] {
-        puts $fp "topresolv:$key:[join $tresolv($key) ,]"
+    foreach key [array names topresolv] {
+        puts $fp "topresolv:$key:[join $topresolv($key) ,]"
+    }
+    foreach key [array names ripeconfig] {
+        puts $fp "config:$key:$ripeconfig($key)"
     }
     close $fp
 }
@@ -589,6 +655,16 @@ proc _ripe_help_dcc { hand idx args } {
             putidx $idx "### \002-ripetopdom <channel> <topdomain>\002"
             putidx $idx "    Remove a top domain from the channel that you no longer"
             putidx $idx "    wish to ban"
+            putidx $idx "### \002ripebanr <banreason|bantopreson> \[text\]\002"
+            putidx $idx "    Set custom ban reasons for 'banreason' and 'bantopreason'."
+            putidx $idx "    To restore the default message run the above command without \[text\]"
+            putidx $idx "    The \[text\] support substitutional keywords, current keywords are:"
+            putidx $idx "    %domain% = Topdomain used in 'bantopreason'"
+            putidx $idx "    %ripe% = Country code from the whois server, used in 'banreason'"
+            putidx $idx "    %nick% = Nickname for the user being banned, used in both 'banreason' and 'bantopreason'"
+            putidx $idx "    Example (topdomain reason): .ripebanr bantopreason Hello '%nick%, TLD '%domain%' is not allowed here"
+            putidx $idx "    Example (standard reason): .ripebanr banreason Sorry '%ripe' not allowed in here"
+            putidx $idx "    Example (restore default ban reason): .ripebanr banreason"
             putidx $idx "### \002ripesettings\002"
             putidx $idx "    List current channel settings"
             putidx $idx "### \002testripecheck <channel> <host>\002"
@@ -621,6 +697,18 @@ proc _ripe_help_dcc { hand idx args } {
             putidx $idx "Usage: \002-ripetopdom <channel> <topdomain>\002"
             putidx $idx "       Remove a top domain from the channel that you no longer"
             putidx $idx "       wish to ban"
+        }
+        ripebanr {
+            putidx $idx "Usage: \002ripebanr <banreason|bantopreson> \[text\]\002"
+            putidx $idx "       Set custom ban reasons for 'banreason' and 'bantopreason'."
+            putidx $idx "       To restore the default message run the above command without \[text\]"
+            putidx $idx "       The \[text\] support substitutional keywords, current keywords are:"
+            putidx $idx "       %domain% = Topdomain used in 'bantopreason'"
+            putidx $idx "       %ripe% = Country code from the whois server, used in 'banreason'"
+            putidx $idx "       %nick% = Nickname for the user being banned, used in both 'banreason' and 'bantopreason'"
+            putidx $idx "       Example (topdomain reason): .ripebanr bantopreason Hello '%nick%, TLD '%domain%' is not allowed here"
+            putidx $idx "       Example (standard reason): .ripebanr banreason Sorry '%ripe' not allowed in here"
+            putidx $idx "       Example (restore default ban reason): .ripebanr banreason"
         }
         testripecheck {
             putidx $idx "Usage: \002testripecheck <channel> <host>\002"
