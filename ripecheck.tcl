@@ -168,7 +168,7 @@ if {[file exists $iplistfile]} {
     putloglev $conflag * "ripecheck: DEBUG - IP file loaded with [llength $maskarray] netmasks"
 }
 
-# Read channel settings - only at startup
+# Read settings - only at startup
 if {[file exists $ripechanfile]} {
     set fchan [open $ripechanfile r]
     while { ![eof $fchan] } {
@@ -178,7 +178,7 @@ if {[file exists $ripechanfile]} {
         } elseif {[regexp {^topresolv} $line]} {
             set topresolv([lindex [split $line :] 1]) [split [lindex [split $line :] 2] ,]
         } elseif {[regexp {^config} $line]} {
-            set ripeconfig([lindex [split $line :] 1]) [split [lindex [split $line :] 2] ,]
+            set ripeconfig([lindex [split $line :] 1]) [lindex [split $line :] 2]
         }
     }
     close $fchan
