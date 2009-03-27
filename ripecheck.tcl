@@ -223,8 +223,8 @@ proc _ripecheck_onjoin { nick host handle channel } {
                 }
                 putlog "ripecheck: Matched top domain '$domain' banning *!*.$domain for $bantime minute(s)"
                 newchanban $channel "*!*@*.$domain" ripecheck $banreason $bantime
-                # Break the loop since we found a match
-                break
+                
+                return 0
             }
         }
     }
