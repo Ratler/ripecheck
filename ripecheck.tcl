@@ -217,7 +217,7 @@ proc _ripecheck_onjoin { nick host handle channel } {
                                   %domain% $domain]
                 set bantime [channel get $channel ripecheck.bantime]
                 if {[info exists ripeconfig(bantopreason)]} {
-                    set banreason [ripe_replace $ripeconfig(bantopreason) $template]
+                    set banreason [ripe_replace [join $ripeconfig(bantopreason)] $template]
                 } else {
                     set banreason "RIPE Country Check: Top domain .$domain is banned."
                 }
@@ -264,7 +264,7 @@ proc ripecheck { ip host nick channel orghost ripe } {
             set template [list %nick% $nick \
                               %ripe% $ripe]
             if {[info exists ripeconfig(banreason)]} {
-                set banreason [ripe_replace $ripeconfig(banreason) $template]
+                set banreason [ripe_replace [join $ripeconfig(banreason)] $template]
             } else {
                 set banreason "RIPE Country Check: Matched .$ripe"
             }
