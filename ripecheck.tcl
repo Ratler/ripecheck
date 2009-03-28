@@ -331,6 +331,11 @@ proc _pubripecheck { nick host handle channel ip } {
 proc whois_connect { ip host status nick channel orghost test } {
     global maskhash maskarray rtimeout conflag
 
+    if {$status == 0} {
+        putlog "ripecheck: Couldn't resolve '$host'. No further action taken."
+        return 0
+    }
+
     set matchmask [::ip::longestPrefixMatch $ip $maskarray]
     set whoisdb [string tolower $maskhash($matchmask)]
 
