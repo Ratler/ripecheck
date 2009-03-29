@@ -8,6 +8,7 @@ ChangeLog:
      * Now possible to change default console output channel, default 'd'
      * Added support for custom ban messages, includes keyword substitution 
        support like %domain%, %ripe%  and %nick%, see .help ripebanr
+     * Better output format from .ripesettings
 	
 2.3: Updated ip delegation list. Fixed a typo.
      Reindented the code.
