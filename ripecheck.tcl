@@ -477,21 +477,23 @@ proc _-ripetopresolv { nick idx arg } {
 
 # List channel and top resolv domains
 proc _ripesettings { nick idx arg } {
-    global chanarr topresolv ripeconfig
+    global chanarr topresolv ripeconfig ver
 
+    putdcc $idx "### \002Settings\002 - Ripecheck v$ver by Ratler ###"
     if {[array size chanarr] > 0 && [array size topresolv] > 0} {
-        putdcc $idx "\002RIPECHECK\002: ---------------- CURRENT SETTINGS ----------------"
         foreach channel [array names chanarr] {
-            putdcc $idx "\002RIPECHECK\002: Channel: $channel   Banned domains: $chanarr($channel)   Resolve domains: $topresolv($channel)"
+            putdcc $idx "### \002Channel:\002 $channel"
+            putdcc $idx "    \002Banned domains:\002 [join $chanarr($channel) ", "]"
+            putdcc $idx "    \002Resolve domains:\002 [join $topresolv($channel) ", "]"
         }
     } else {
-        putdcc $idx "\002RIPECHECK\002: No channel settings made yet."
+        putdcc $idx "### No channel settings exist."
     }
     if {[info exists ripeconfig(banreason)]} {
-        putdcc $idx "\002RIPECHECK\002: Ban reason: '[join $ripeconfig(banreason)]'"
+        putdcc $idx "### \002Ban reason:\002 [join $ripeconfig(banreason)]"
     }
     if {[info exists ripeconfig(bantopreason)]} {
-        putdcc $idx "\002RIPECHECK\002: Ban TLD reason: '[join $ripeconfig(bantopreason)]'"
+        putdcc $idx "### \002Ban TLD reason:\002 [join $ripeconfig(bantopreason)]"
     }
 }
 
