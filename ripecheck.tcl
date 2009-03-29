@@ -377,7 +377,7 @@ proc whois_callback { ip host nick channel orghost sock whoisdb test } {
                 if { $test == 1 } {
                     testripecheck $ip $host $channel $line
                 } elseif { $test == 2 } {
-                    puthelp "PRIVMSG $channel :ripecheck: $host is located in .$line"
+                    puthelp "PRIVMSG $channel :ripecheck: $host is located in '$line'"
                 } else {
                     ripecheck $ip $host $nick $channel $orghost $line
                 }
