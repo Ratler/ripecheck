@@ -1,6 +1,7 @@
 ChangeLog:
-2.5:
-     * Major bug fixed, ripecheck did not follow 'ReferralServer' from whois.
+2.6: * Ignore rwhois referrals
+	
+2.5: * Major bug fixed, ripecheck did not follow 'ReferralServer' from whois.
        This could result in innocent hosts being banned. Unfortunatly a 'Country'
        entry was available in Referral output, which of course ripecheck
        used. Ripecheck should now have a lot less false positives.

@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 2.5  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 2.6  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -16,7 +16,7 @@
 # * Now has help pages, see .help ripecheck
 ###
 # Require / Depends:
-# tcllib 1.8
+# tcllib >= 1.8
 ###
 # Usage:
 # Load the script and change the topdomains you
@@ -149,7 +149,7 @@ bind dcc -|- help _ripe_help_dcc
 bind pub -|- !ripecheck _pubripecheck
 
 # Global variables
-set ver "2.5"
+set ver "2.6"
 set maskarray [list]
 
 # Parse ip list file
@@ -390,7 +390,7 @@ proc whois_callback { ip host nick channel orghost sock whoisdb test } {
                 putloglev $conflag * "ripecheck: DEBUG - Found whois referral server: $referral"
                 
                 # Extract the whois server from $referral
-                if {[regexp -line -nocase {r?whois://(.*[^/])/?} $referral -> referral]} {
+                if {[regexp -line -nocase {^whois://(.*[^/])/?} $referral -> referral]} {
                     foreach {referral whoisport} [split $referral :] { break }
 
                     # Set default port if empty
@@ -406,6 +406,10 @@ proc whois_callback { ip host nick channel orghost sock whoisdb test } {
                     whois_connect $ip $host $nick $channel $orghost $referral $whoisport $test
 
                     return 0
+                } elseif {[regexp -line -nocase {^rwhois://.*} $referral]} {
+                    # Ignore rwhois for now  
+                    putloglev $conflag * "ripecheck: DEBUG - Ignoring rwhois referral"
+                    continue
                 } else {
                     putlog "ripecheck: ERROR: Unknown referral type from '$whoisdb' for ip '$ip', please bug report this line."
                     close $sock; return -1
