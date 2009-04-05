@@ -1,4 +1,10 @@
 ChangeLog:
+2.5:
+     * Major bug fixed, ripecheck did not follow 'ReferralServer' from whois.
+       This could result in innocent hosts being banned. Unfortunatly a 'Country'
+       entry was available in Referral output, which of course ripecheck
+       used. Ripecheck should now have a lot less false positives.
+	
 2.4: * Updated ip delegation list
      * Fixed a minor bug in .testripecheck function that caused
        wrong number of arguments being sent to whois_connect

@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 2.4  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 2.5  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -149,7 +149,7 @@ bind dcc -|- help _ripe_help_dcc
 bind pub -|- !ripecheck _pubripecheck
 
 # Global variables
-set ver "2.4"
+set ver "2.5"
 set maskarray [list]
 
 # Parse ip list file
@@ -232,7 +232,7 @@ proc _ripecheck_onjoin { nick host handle channel } {
     # Only run RIPE check on numeric IP unless ripecheck.topchk is enabled
     if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
         putloglev $conflag * "ripecheck: DEBUG - Found numeric IP $iphost ... scanning"
-        whois_connect $iphost $iphost 1 $nick $channel $host 0
+        whois_find_server $iphost $iphost 1 $nick $channel $host 0
     } elseif {[channel get $channel ripecheck.topchk]} {
         # Check if channel has a resolv domain list or complain about it and then abort
         if {![info exists topresolv($channel)]} {
@@ -247,7 +247,7 @@ proc _ripecheck_onjoin { nick host handle channel } {
             putloglev $conflag * "ripecheck: DEBUG - domain: $domain ip: $iphost"
             if {[regexp "^$domain$" $htopdom]} {
                 putloglev $conflag * "ripecheck: DEBUG - Matched resolve domain '$domain'"
-                dnslookup $iphost whois_connect $nick $channel $host 0
+                dnslookup $iphost whois_find_server $nick $channel $host 0
                 # Break the loop since we found a match
                 break
             }
@@ -288,7 +288,7 @@ proc _testripecheck { nick idx arg } {
 
     if {[validchan $channel]} {
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
-            whois_connect $ip "" ""  $nick $channel "" 1
+            whois_find_server $ip "" ""  $nick $channel "" 1
         } else {
             putloglev $conflag * "ripecheck: DEBIG - Resolving..."
             set htopdom [lindex [split $ip "."] end]
@@ -296,7 +296,7 @@ proc _testripecheck { nick idx arg } {
                 putloglev $conflag * "ripecheck: DEBUG - channel: $channel domain: $domain ip: $ip top domain: $htopdom"
                 if {[regexp "^$domain$" $htopdom]} {
                     putloglev $conflag * "ripecheck: DEBUG - Matched resolve domain '$domain' for $channel"
-                    dnslookup $ip whois_connect $nick $channel "" 1
+                    dnslookup $ip whois_find_server $nick $channel "" 1
                     # Break the loop since we found a match
                     break
                 }
@@ -318,18 +318,20 @@ proc testripecheck { ip host channel ripe } {
         }
     }
 }
+
 proc _pubripecheck { nick host handle channel ip } {
     if {![channel get $channel ripecheck.pubcmd]} { return 0 }
 
     if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
-        whois_connect $ip $ip "" $nick $channel "" 2
+        whois_find_server $ip $ip "" $nick $channel "" 2
     } else {
-        dnslookup $ip whois_connect $nick $channel "" 2
+        dnslookup $ip whois_find_server $nick $channel "" 2
     }
 }
 
-proc whois_connect { ip host status nick channel orghost test } {
-    global maskhash maskarray rtimeout conflag
+# Lookup which whois server to query and call whois_connect
+proc whois_find_server { ip host status nick channel orghost test } {
+    global maskhash maskarray conflag
 
     if {$status == 0} {
         putlog "ripecheck: Couldn't resolve '$host'. No further action taken."
@@ -338,18 +340,25 @@ proc whois_connect { ip host status nick channel orghost test } {
 
     set matchmask [::ip::longestPrefixMatch $ip $maskarray]
     set whoisdb [string tolower $maskhash($matchmask)]
+    set whoisport 43
+
+    putloglev $conflag * "ripecheck: DEBUG - Matching mask $matchmask using whois DB: $whoisdb"
 
     if { $whoisdb == "unallocated" } {
         putlog "ripecheck: Unallocated netmask, bailing out!"
         return -1
     }
 
+    whois_connect $ip $host $nick $channel $orghost $whoisdb $whoisport $test
+}
+
+proc whois_connect { ip host nick channel orghost whoisdb whoisport test } {
+    global rtimeout conflag
+
     # Setup timeout
     after $rtimeout * 1000 set ::state "timeout"
 
-    putloglev $conflag * "ripecheck: DEBUG - Matching mask $matchmask using whois DB: $whoisdb"
-
-    if {[catch {socket -async $whoisdb 43} sock]} {
+    if {[catch {socket -async $whoisdb $whoisport} sock]} {
         putlog "ripecheck: ERROR: Failed to connect to server $whoisdb!" ; return -1
     }
     fconfigure $sock -buffering line
@@ -363,27 +372,64 @@ proc whois_connect { ip host status nick channel orghost test } {
 proc whois_callback { ip host nick channel orghost sock whoisdb test } {
     global ::state conflag
 
+    putloglev $conflag * "ripecheck: DEBUG - Entering whois_callback..."
+
     if {[string equal {} [fconfigure $sock -error]]} {
         puts $sock $ip
         flush $sock
+        
+        putloglev $conflag * "ripecheck: DEBUG - State 'connected' with '$whoisdb'"
 
         set ::state "connected"
+
         while {![eof $sock]} {
             set row [gets $sock]
-            if {[regexp -line -nocase {country:\s*([a-z]{2,4})} $row -> line]} {
-                set line [string tolower $line]
-                putloglev $conflag * "ripecheck: DEBUG - $whoisdb answer: $line Test: $test"
 
-                if { $test == 1 } {
-                    testripecheck $ip $host $channel $line
-                } elseif { $test == 2 } {
-                    puthelp "PRIVMSG $channel :ripecheck: $host is located in '$line'"
+            if {[regexp -line -nocase {referralserver:\s*(.*)} $row -> referral]} {
+                set referral [string tolower $referral]
+                putloglev $conflag * "ripecheck: DEBUG - Found whois referral server: $referral"
+                
+                # Extract the whois server from $referral
+                if {[regexp -line -nocase {r?whois://(.*[^/])/?} $referral -> referral]} {
+                    foreach {referral whoisport} [split $referral :] { break }
+
+                    # Set default port if empty
+                    if {$whoisport == ""} {
+                        set whoisport 43
+                    }
+                    
+                    # Close socket, don't want to many sockets open simultaneously
+                    close $sock
+                    
+                    # Time for some recursive looping ;)
+                    putloglev $conflag * "ripecheck: DEBUG - Following referral server, new server is '$referral', port '$whoisport'"
+                    whois_connect $ip $host $nick $channel $orghost $referral $whoisport $test
+
+                    return 0
                 } else {
-                    ripecheck $ip $host $nick $channel $orghost $line
+                    putlog "ripecheck: ERROR: Unknown referral type from '$whoisdb' for ip '$ip', please bug report this line."
+                    close $sock; return -1
                 }
-                break
+            } elseif {[regexp -line -nocase {country:\s*([a-z]{2,4})} $row -> country]} {
+                set country [string tolower $country]
             }
         }
+
+        putloglev $conflag * "ripecheck: DEBUG - End of while-loop in whois_callback"
+        
+        if {[info exists country]} {
+            putloglev $conflag * "ripecheck: DEBUG - $whoisdb answer: $country Test: $test"
+            if {$test == 1} {
+                testripecheck $ip $host $channel $country
+            } elseif {$test == 2} {
+                puthelp "PRIVMSG $channel :ripecheck: $host is located in '$country'"
+            } else {
+                ripecheck $ip $host $nick $channel $orghost $country
+            }
+        } else {
+            putlog "ripecheck: No country found for '$ip'. No further action taken. (Possible bug?)"
+        }
+        
         close $sock
     } else {
         set ::state "timeout"
