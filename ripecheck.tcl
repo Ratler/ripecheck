@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 2.6  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 2.6.1  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -149,7 +149,7 @@ bind dcc -|- help _ripe_help_dcc
 bind pub -|- !ripecheck _pubripecheck
 
 # Global variables
-set ver "2.6"
+set ver "2.6.1"
 set maskarray [list]
 
 # Parse ip list file
@@ -174,9 +174,9 @@ if {[file exists $ripechanfile]} {
     while { ![eof $fchan] } {
         gets $fchan line
         if {[regexp {^\#} $line]} {
-            set chanarr([lindex [split $line :] 0]) [split [lindex [split $line :] 1] ,]
+            set chanarr([string tolower [lindex [split $line :] 0]]) [split [lindex [split $line :] 1] ,]
         } elseif {[regexp {^topresolv} $line]} {
-            set topresolv([lindex [split $line :] 1]) [split [lindex [split $line :] 2] ,]
+            set topresolv([string tolower [lindex [split $line :] 1]]) [split [lindex [split $line :] 2] ,]
         } elseif {[regexp {^config} $line]} {
             set ripeconfig([lindex [split $line :] 1]) [lindex [split $line :] 2]
         }
@@ -189,6 +189,9 @@ if {[file exists $ripechanfile]} {
 # Functions
 proc _ripecheck_onjoin { nick host handle channel } {
     global topresolv chanarr conflag ripeconfig
+
+    # Lower case channel
+    set channel [string tolower $channel]
 
     # Only run if channel is defined
     if {![channel get $channel ripecheck]} { return 0 }
@@ -285,12 +288,13 @@ proc _testripecheck { nick idx arg } {
 
     foreach {channel ip} $arg {break}
     set ip [string tolower $ip]
+    set channel [string tolower $channel]
 
     if {[validchan $channel]} {
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
             whois_find_server $ip "" ""  $nick $channel "" 1
         } else {
-            putloglev $conflag * "ripecheck: DEBIG - Resolving..."
+            putloglev $conflag * "ripecheck: DEBUG - Resolving..."
             set htopdom [lindex [split $ip "."] end]
             foreach domain $topresolv($channel) {
                 putloglev $conflag * "ripecheck: DEBUG - channel: $channel domain: $domain ip: $ip top domain: $htopdom"
@@ -320,6 +324,8 @@ proc testripecheck { ip host channel ripe } {
 }
 
 proc _pubripecheck { nick host handle channel ip } {
+    set channel [string tolower $channel]
+
     if {![channel get $channel ripecheck.pubcmd]} { return 0 }
 
     if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
@@ -450,6 +456,7 @@ proc _+ripetopresolv { nick idx arg } {
     
     foreach {channel topdom} $arg {break}
 
+    set channel [string tolower $channel]
     set topdom [string tolower $topdom]
 
     if {[validchan $channel]} {
@@ -493,6 +500,7 @@ proc _-ripetopresolv { nick idx arg } {
 
     foreach {channel topdom} $arg {break}
 
+    set channel [string tolower $channel]
     set topdom [string tolower $topdom]
 
     if {[validchan $channel]} {
@@ -557,6 +565,7 @@ proc _+ripetopdom { nick idx arg } {
 
     foreach {channel topdom} $arg {break}
 
+    set channel [string tolower $channel]
     set topdom [string tolower $topdom]
 
     if {[validchan $channel]} {
@@ -594,6 +603,7 @@ proc _-ripetopdom { nick idx arg } {
 
     foreach {channel topdom} $arg {break}
 
+    set channel [string tolower $channel]
     set topdom [string tolower $topdom]
 
     if {[validchan $channel]} {
