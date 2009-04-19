@@ -1,52 +1,64 @@
 ChangeLog:
-2.6: * Ignore rwhois referrals
+2.6.1:  - Ripecheck will now correctly handle channel name in lower case
 	
-2.5: * Major bug fixed, ripecheck did not follow 'ReferralServer' from whois.
-       This could result in innocent hosts being banned. Unfortunatly a 'Country'
-       entry was available in Referral output, which of course ripecheck
-       used. Ripecheck should now have a lot less false positives.
+2.6: 	- Ignore rwhois referrals
 	
-2.4: * Updated ip delegation list
-     * Fixed a minor bug in .testripecheck function that caused
-       wrong number of arguments being sent to whois_connect
-     * Added help page through the dcc console, see .help ripecheck
-     * Added usage information for individual commands, see .help +ripetopdom
-     * <+/->ripetopresolv now support regexp pattern matching
-     * Now possible to change default console output channel, default 'd'
-     * Added support for custom ban messages, includes keyword substitution 
-       support like %domain%, %ripe%  and %nick%, see .help ripebanr
-     * Better output format from .ripesettings
+2.5: 	- Major bug fixed, ripecheck did not follow 'ReferralServer' from whois.
+	  This could result in innocent hosts being banned. Unfortunatly a 'Country'
+          entry was available in Referral output, which of course ripecheck
+          used. Ripecheck should now have a lot less false positives.
 	
-2.3: Updated ip delegation list. Fixed a typo.
-     Reindented the code.
-2.2: Updated iplist.txt with netmask changes
-2.1: Fixed a bug in .testripecheck. Forcing top domains to
-     lower case.
-2.0: I'm happy to announce that it's now possible to configure
-     everything through the dcc console. Setting top domains and
-     resolve domains per channel is also available now. Code
-     added to prevent configuration loss, not fool
-     proof though.
-1.1: New option for top domain banning based on configured
-     top domains. Added public !ripecheck <host> command.
-1.0: http dependency removed. Now connecting directly over a
-     socket to the whois server. Still looking for
-     potential bugs. Now support all whois databases!
-0.7: New dependency added, tcllib.
-     Ripecheck will now try to guess which whois database
-     to use, it should now be a lot more accurate when banning.
-     Whois databases supported now are:
-     RIPE, APNIC, ARIN, AFRINIC, VERIO
-0.6: New function to resolve some topdomains and then
-     do a ripecheck. Topdomains like .com .info might
-     match countries in your topdomain list.
-     It's also possible to change timeout for the RIPE
-     query, recommended setting is default 5 seconds.
-     Saving a few cpu cycles by breaking loops when a match
-     was found.
-0.5: Added better error handling during the http query.
-     Added channel flags so it's possible to enable/disable
-     ripecheck per channel.
-0.4: Changed to using http package instead of sockets.
-     Added configuration option for ban time
-0.2: First release (not public)
+2.4:    - Updated ip delegation list
+	- Fixed a minor bug in .testripecheck function that caused
+          wrong number of arguments being sent to whois_connect
+        - Added help page through the dcc console, see .help ripecheck
+        - Added usage information for individual commands, see .help +ripetopdom
+        - <+/->ripetopresolv now support regexp pattern matching
+        - Now possible to change default console output channel, default 'd'
+        - Added support for custom ban messages, includes keyword substitution 
+          support like %domain%, %ripe%  and %nick%, see .help ripebanr
+        - Better output format from .ripesettings
+	
+2.3:    - Updated ip delegation list. Fixed a typo.
+        - Reindented the code.
+	
+2.2:    - Updated iplist.txt with netmask changes
+	
+2.1:    - Fixed a bug in .testripecheck. Forcing top domains to
+          lower case.
+	
+2.0:    - I'm happy to announce that it's now possible to configure
+          everything through the dcc console. Setting top domains and
+          resolve domains per channel is also available now. Code
+          added to prevent configuration loss, not fool
+          proof though.
+	
+1.1:    - New option for top domain banning based on configured
+          top domains. Added public !ripecheck <host> command.
+	
+1.0:    - http dependency removed. Now connecting directly over a
+          socket to the whois server. Still looking for
+          potential bugs. Now support all whois databases!
+	
+0.7:    - New dependency added, tcllib.
+        - Ripecheck will now try to guess which whois database
+          to use, it should now be a lot more accurate when banning.
+          Whois databases supported now are:
+          RIPE, APNIC, ARIN, AFRINIC, VERIO
+	
+0.6:    - New function to resolve some topdomains and then
+          do a ripecheck. Topdomains like .com .info might
+          match countries in your topdomain list.
+          It's also possible to change timeout for the RIPE
+          query, recommended setting is default 5 seconds.
+          Saving a few cpu cycles by breaking loops when a match
+          was found.
+	
+0.5:    - Added better error handling during the http query.
+        - Added channel flags so it's possible to enable/disable
+          ripecheck per channel.
+	
+0.4:    - Changed to using http package instead of sockets.
+        - Added configuration option for ban time
+	
+0.2:    - First release (not public)
