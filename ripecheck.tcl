@@ -139,21 +139,24 @@ setudef int ripecheck.bantime
 package require ip
 
 # Bindings
-bind join - *!*@* $::ripecheck::onJoin
-bind dcc -|- testripecheck $::ripecheck::test
-bind dcc m|ov +ripetopdom $::ripecheck::addTopDom
-bind dcc m|ov -ripetopdom $::ripecheck::delTopDom
-bind dcc m|ov +ripetopresolv $::ripecheck::addTopResolve
-bind dcc m|ov -ripetopresolv $::ripecheck::delTopResolve
-bind dcc m|ov ripebanr $::ripecheck::banReason
-bind dcc -|- ripesettings $::ripecheck::ripeSettings
-bind dcc -|- help $::ripecheck::help
-bind pub -|- !ripecheck $::ripecheck::pubRipeCheck
+bind join - *!*@* ::ripecheck::onJoin
+bind dcc -|- testripecheck ::ripecheck::test
+bind dcc m|ov +ripetopdom ::ripecheck::addTopDom
+bind dcc m|ov -ripetopdom ::ripecheck::delTopDom
+bind dcc m|ov +ripetopresolv ::ripecheck::addTopResolve
+bind dcc m|ov -ripetopresolv ::ripecheck::delTopResolve
+bind dcc m|ov ripebanr ::ripecheck::banReason
+bind dcc -|- ripesettings ::ripecheck::settings
+bind dcc -|- help ::ripecheck::help
+bind pub -|- !ripecheck ::ripecheck::pubRipeCheck
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "2.6.1"
-    variable maskarray [list]
+    variable version "3.0-testing"
+    variable maskarray
+    variable chanarr
+    variable topresolv
+    variable config
 
     # Parse ip list file
     if {[file exists $::ripecheck::iplistfile]} {
@@ -165,7 +168,7 @@ namespace eval ::ripecheck {
             }
             regexp {^([0-9\.\/]+)[[:space:]]+([a-z\.]+)} $line dummy mask whoisdb
             lappend ::ripecheck::maskarray $mask
-            variable maskhash($mask) $whoisdb
+            set maskhash($mask) $whoisdb
         }
         close $fid
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - IP file loaded with [llength $::ripecheck::maskarray] netmasks"
@@ -177,11 +180,11 @@ namespace eval ::ripecheck {
         while { ![eof $fchan] } {
             gets $fchan line
             if {[regexp {^\#} $line]} {
-                variable chanarr([string tolower [lindex [split $line :] 0]]) [split [lindex [split $line :] 1] ,]
+                set chanarr([string tolower [lindex [split $line :] 0]]) [split [lindex [split $line :] 1] ,]
             } elseif {[regexp {^topresolv} $line]} {
-                variable topresolv([string tolower [lindex [split $line :] 1]]) [split [lindex [split $line :] 2] ,]
+                set topresolv([string tolower [lindex [split $line :] 1]]) [split [lindex [split $line :] 2] ,]
             } elseif {[regexp {^config} $line]} {
-                variable config([lindex [split $line :] 1]) [lindex [split $line :] 2]
+                set config([lindex [split $line :] 1]) [lindex [split $line :] 2]
             }
         }
         close $fchan
@@ -475,7 +478,7 @@ namespace eval ::ripecheck {
                     set topresolv($channel) $dlist
                 }
                 # Write to the ripecheck channel file
-                write_settings
+                ::ripecheck::writeSettings
                 putdcc $idx "\002RIPECHECK\002: Top resolve domain '$topdom' successfully added to $channel."
             } else {
                 putdcc $idx "\002RIPECHECK\002: You need to add a top domain for $channel before adding a resolve domain."
@@ -487,8 +490,6 @@ namespace eval ::ripecheck {
 
     # Remove resolve domain from channel and write settings to file
     proc delTopResolve { nick idx arg } {
-        global chanarr topresolv conflag
-
         if {[llength [split $arg]] != 2} {
             _ripe_help_dcc $nick $idx -ripetopresolv; return 0
         }
@@ -499,18 +500,18 @@ namespace eval ::ripecheck {
         set topdom [string tolower $topdom]
 
         if {[validchan $channel]} {
-            if {[info exists topresolv($channel)]} {
+            if {[info exists ::ripecheck::topresolv($channel)]} {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - topresolv($channel) exists"
-                set dlist $topresolv($channel)
+                set dlist $::ripecheck::topresolv($channel)
                 # resolve domain exist so lets remove it
                 set dlist_index [lsearch -exact $dlist $topdom]
                 if {$dlist_index != -1 } {
                     set dlist [lreplace $dlist $dlist_index $dlist_index]
                     # More magic, lets clear array if the list is empty
                     if {[llength $dlist] > 0} {
-                        set topresolv($channel) $dlist
+                        set ::ripecheck::topresolv($channel) $dlist
                     } else {
-                        unset topresolv($channel)
+                        unset ::ripecheck::topresolv($channel)
                     }
                 } else {
                     putdcc $idx "\002RIPECHECK\002: Resolve domain '$topdom' doesn't exist on $channel"; return 0
@@ -520,7 +521,7 @@ namespace eval ::ripecheck {
                 putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."
             }
             # Write to the ripecheck channel file
-            write_settings
+            ::ripecheck::writeSettings
             putdcc $idx "\002RIPECHECK\002: Resolve domain '$topdom' successfully removed from $channel."
 
         } else {
@@ -529,31 +530,27 @@ namespace eval ::ripecheck {
     }
 
     # List channel and top resolv domains
-    proc _ripesettings { nick idx arg } {
-        global chanarr topresolv ripeconfig ver
-
-        putdcc $idx "### \002Settings\002 - Ripecheck v$ver by Ratler ###"
-        if {[array size chanarr] > 0 && [array size topresolv] > 0} {
-            foreach channel [array names chanarr] {
+    proc settings { nick idx arg } {
+        putdcc $idx "### \002Settings\002 - Ripecheck v$::ripecheck::version by Ratler ###"
+        if {[array size ::ripecheck::chanarr] > 0 && [array size ::ripecheck::topresolv] > 0} {
+            foreach channel [array names ::ripecheck::chanarr] {
                 putdcc $idx "### \002Channel:\002 $channel"
-                putdcc $idx "    \002Banned domains:\002 [join $chanarr($channel) ", "]"
-                putdcc $idx "    \002Resolve domains:\002 [join $topresolv($channel) ", "]"
+                putdcc $idx "    \002Banned domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
+                putdcc $idx "    \002Resolve domains:\002 [join $::ripecheck::topresolv($channel) ", "]"
             }
         } else {
             putdcc $idx "### No channel settings exist."
         }
-        if {[info exists ripeconfig(banreason)]} {
-            putdcc $idx "### \002Ban reason:\002 [join $ripeconfig(banreason)]"
+        if {[info exists ::ripecheck::config(banreason)]} {
+            putdcc $idx "### \002Ban reason:\002 [join $::ripecheck::config(banreason)]"
         }
-        if {[info exists ripeconfig(bantopreason)]} {
-            putdcc $idx "### \002Ban TLD reason:\002 [join $ripeconfig(bantopreason)]"
+        if {[info exists ::ripecheck::config(bantopreason)]} {
+            putdcc $idx "### \002Ban TLD reason:\002 [join $::ripecheck::config(bantopreason)]"
         }
     }
 
     # Add top domain to channel and write settings to file
     proc addTopDom { nick idx arg } {
-        global chanarr topresolv conflag
-
         if {[llength [split $arg]] != 2} {
             _ripe_help_dcc $nick $idx +ripetopdom; return 0
         }
@@ -565,23 +562,23 @@ namespace eval ::ripecheck {
 
         if {[validchan $channel]} {
             # If data exist extract into a list
-            if {[info exists chanarr($channel)]} {
+            if {[info exists ::ripecheck::chanarr($channel)]} {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - chanarr exists"
-                set dlist $chanarr($channel)
+                set dlist $::ripecheck::chanarr($channel)
                 # top domain doesn't exist so lets add it
                 if {[lsearch -exact $dlist $topdom] == -1 } {
                     lappend dlist $topdom
-                    set chanarr($channel) $dlist
+                    set ::ripecheck::chanarr($channel) $dlist
                 } else {
                     putdcc $idx "\002RIPECHECK\002: Domain '$topdom' already exist on $channel"; return 0
                 }
             } else {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - chanarr doesn't exist"
                 set dlist [list $topdom]
-                set chanarr($channel) $dlist
+                set ::ripecheck::chanarr($channel) $dlist
             }
             # Write to the ripecheck channel file
-            write_settings
+            ::ripecheck::writeSettings
             putdcc $idx "\002RIPECHECK\002: Top domain '$topdom' successfully added to $channel."
         } else {
             putdcc $idx "\002RIPECHECK\002: Invalid channel: $channel"
@@ -590,8 +587,6 @@ namespace eval ::ripecheck {
 
     # Remove top domain for channel and write settings to file
     proc delTopDom { nick idx arg } {
-        global chanarr topresolv conflag
-
         if {[llength [split $arg]] != 2} {
             _ripe_help_dcc $nick $idx -ripetopdom; return 0
         }
@@ -602,18 +597,18 @@ namespace eval ::ripecheck {
         set topdom [string tolower $topdom]
 
         if {[validchan $channel]} {
-            if {[info exists chanarr($channel)]} {
+            if {[info exists ::ripecheck::chanarr($channel)]} {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - chanarr($channel) exists"
-                set dlist $chanarr($channel)
+                set dlist $::ripecheck::chanarr($channel)
                 # top domain doesn't exist so lets add it
                 set dlist_index [lsearch -exact $dlist $topdom]
                 if {$dlist_index != -1 } {
                     set dlist [lreplace $dlist $dlist_index $dlist_index]
                     # More magic, clear array if list is empty
                     if {[llength $dlist] > 0} {
-                        set chanarr($channel) $dlist
+                        set ::ripecheck::chanarr($channel) $dlist
                     } else {
-                        unset chanarr($channel)
+                        unset ::ripecheck::chanarr($channel)
                     }
                 } else {
                     putdcc $idx "\002RIPECHECK\002: Domain '$topdom' doesn't exist on $channel"; return 0
@@ -623,7 +618,7 @@ namespace eval ::ripecheck {
                 putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."
             }
             # Write to the ripecheck channel file
-            write_settings
+            ::ripecheck::writeSettings
             putdcc $idx "\002RIPECHECK\002: Top domain '$topdom' successfully removed from $channel."
 
         } else {
@@ -631,7 +626,7 @@ namespace eval ::ripecheck {
         }
     }
 
-    proc _ripebanreason { nick idx arg } {
+    proc banRreason { nick idx arg } {
         global ripeconfig
 
         if {!([llength [split $arg]] > 0)} {
@@ -643,14 +638,14 @@ namespace eval ::ripecheck {
 
         if {($type == "banreason") || ($type == "bantopreason") } {
             # Lets clear the ban reason
-            if {$text == "" && [info exists ripeconfig($type)]} {
-                unset ripeconfig($type)
+            if {$text == "" && [info exists ::ripecheck::config($type)]} {
+                unset ::ripecheck::config($type)
                 putdcc $idx "\002RIPECHECK\002: Successfully removed '$type'"
             } elseif {$text != ""} {
-                set ripeconfig($type) $text
+                variable config($type) $text
                 putdcc $idx "\002RIPECHECK\002: Successfully added '$type' value '$text'"
             }
-            write_settings
+            ::ripecheck::writeSettings
         } else {
             _ripe_help_dcc $nick $idx ripebanr; return 0
         }
@@ -663,36 +658,32 @@ namespace eval ::ripecheck {
         return $text
     }
 
-    proc write_settings { } {
-        global ripechanfile chanarr topresolv ripeconfig
-
+    proc writeSettings { } {
         # Backup file in case something goes wrong
-        if {[file exists $ripechanfile]} {
+        if {[file exists $::ripecheck::chanfile]} {
             # Don't backup a zero byte file
-            if {[file size $ripechanfile] > 0} {
-                file copy -force $ripechanfile $ripechanfile.bak
+            if {[file size $::ripecheck::chanfile] > 0} {
+                file copy -force $::ripecheck::chanfile $::ripecheck::chanfile.bak
             }
         }
-        set fp [open $ripechanfile w]
+        set fp [open $::ripecheck::chanfile w]
 
-        foreach key [array names chanarr] {
-            puts $fp "$key:[join $chanarr($key) ,]"
+        foreach key [array names ::ripecheck::chanarr] {
+            puts $fp "$key:[join $::ripecheck::chanarr($key) ,]"
         }
-        foreach key [array names topresolv] {
-            puts $fp "topresolv:$key:[join $topresolv($key) ,]"
+        foreach key [array names ::ripecheck::topresolv] {
+            puts $fp "topresolv:$key:[join $::ripecheck::topresolv($key) ,]"
         }
-        foreach key [array names ripeconfig] {
-            puts $fp "config:$key:[join $ripeconfig($key)]"
+        foreach key [array names ::ripecheck::config] {
+            puts $fp "config:$key:[join $::ripecheck::config($key)]"
         }
         close $fp
     }
 
-    proc _ripe_help_dcc { hand idx args } {
-        global ver
-
+    proc help { hand idx args } {
         switch -- $args {
             ripecheck {
-                putidx $idx "### \002ripecheck v$ver\002 by Ratler ###"; putidx $idx ""
+                putidx $idx "### \002ripecheck v$::ripecheck::version\002 by Ratler ###"; putidx $idx ""
                 putidx $idx "### \002chanset <channel> <+/->ripecheck\002"
                 putidx $idx "    Enable (+) or disable (-) the script for specified channel"
                 putidx $idx "### \002chanset <channel> ripecheck.bantime <minutes>\002"
@@ -781,4 +772,4 @@ namespace eval ::ripecheck {
         }
     }
 }
-putlog "ripecheck v$ver by Ratler loaded"
+putlog "ripecheck v$::ripecheck::version by Ratler loaded"
