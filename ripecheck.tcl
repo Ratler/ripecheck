@@ -153,11 +153,13 @@ bind pub -|- !ripecheck ::ripecheck::pubRipeCheck
 namespace eval ::ripecheck {
     # Global variables
     variable version "3.0-testing"
+
     variable maskarray
     variable chanarr
     variable topresolv
     variable config
-
+    variable constate
+    
     # Parse ip list file
     if {[file exists $::ripecheck::iplistfile]} {
         set fid [open $::ripecheck::iplistfile r]
@@ -180,11 +182,11 @@ namespace eval ::ripecheck {
         while { ![eof $fchan] } {
             gets $fchan line
             if {[regexp {^\#} $line]} {
-                set chanarr([string tolower [lindex [split $line :] 0]]) [split [lindex [split $line :] 1] ,]
+                set ::ripecheck::chanarr([string tolower [lindex [split $line :] 0]]) [split [lindex [split $line :] 1] ,]
             } elseif {[regexp {^topresolv} $line]} {
-                set topresolv([string tolower [lindex [split $line :] 1]]) [split [lindex [split $line :] 2] ,]
+                set ::ripecheck::topresolv([string tolower [lindex [split $line :] 1]]) [split [lindex [split $line :] 2] ,]
             } elseif {[regexp {^config} $line]} {
-                set config([lindex [split $line :] 1]) [lindex [split $line :] 2]
+                set ::ripecheck::config([lindex [split $line :] 1]) [lindex [split $line :] 2]
             }
         }
         close $fchan
@@ -208,7 +210,7 @@ namespace eval ::ripecheck {
 
         # Check if channel has a domain list or complain about it and then abort
         if {![info exists ::ripecheck::chanarr($channel)]} {
-            putlog "ripecheck: Ripecheck is enabled but $channel has no domain list!"
+            putlog "ripecheck: Ripecheck is enabled but '$channel' has no domain list!"
             return 0
         }
 
@@ -242,15 +244,15 @@ namespace eval ::ripecheck {
             ::ripecheck::whoisFindServer $iphost $iphost 1 $nick $channel $host 0
         } elseif {[channel get $channel ripecheck.topchk]} {
             # Check if channel has a resolv domain list or complain about it and then abort
-            if {![info exists topresolv($channel)]} {
-                putlog "ripecheck: Ripecheck is enabled but $channel has no resolv domain list!"
+            if {![info exists ::ripecheck::topresolv($channel)]} {
+                putlog "ripecheck: Ripecheck is enabled but '$channel' has no resolve domain list!"
                 return 0
             }
 
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Trying to resolve host ..."
 
             set htopdom [lindex [split $iphost "."] end]
-            foreach domain $topresolv($channel) {
+            foreach domain $::ripecheck::topresolv($channel) {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - domain: $domain ip: $iphost"
                 if {[regexp "^$domain$" $htopdom]} {
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched resolve domain '$domain'"
@@ -269,7 +271,7 @@ namespace eval ::ripecheck {
                 set template [list %nick% $nick \
                                   %ripe% $ripe]
                 if {[info exists ::ripecheck::config(banreason)]} {
-                    set banreason [ripe_replace $::ripecheck::config(banreason) $template]
+                    set banreason [::ripecheck::replaceTemplate $::ripecheck::config(banreason) $template]
                 } else {
                     set banreason "RIPE Country Check: Matched .$ripe"
                 }
@@ -282,10 +284,8 @@ namespace eval ::ripecheck {
     }
 
     proc test { nick idx arg } {
-        global topresolv conflag
-
         if {[llength [split $arg]] != 2} {
-            _ripe_help_dcc $nick $idx testripecheck; return 0
+            ::ripecheck::help $nick $idx test; return 0
         }
 
         foreach {channel ip} $arg {break}
@@ -294,15 +294,15 @@ namespace eval ::ripecheck {
 
         if {[validchan $channel]} {
             if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
-                whois_find_server $ip "" ""  $nick $channel "" 1
+                ::ripecheck::whoisFindServer $ip "" ""  $nick $channel "" 1
             } else {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Resolving..."
                 set htopdom [lindex [split $ip "."] end]
-                foreach domain $topresolv($channel) {
+                foreach domain $::ripecheck::topresolv($channel) {
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - channel: $channel domain: $domain ip: $ip top domain: $htopdom"
                     if {[regexp "^$domain$" $htopdom]} {
                         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched resolve domain '$domain' for $channel"
-                        dnslookup $ip whois_find_server $nick $channel "" 1
+                        dnslookup $ip ::ripecheck::whoisFindServer $nick $channel "" 1
                         # Break the loop since we found a match
                         break
                     }
@@ -314,9 +314,8 @@ namespace eval ::ripecheck {
     }
 
     proc testripecheck { ip host channel ripe } {
-        global chanarr conflag
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Got country: $ripe"
-        foreach country $chanarr($channel) {
+        foreach country $::ripecheck::chanarr($channel) {
             if {![string compare $ripe $country]} {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched '$ripe' for $ip on channel $channel."
                 # Break the loop since we found a match
@@ -331,9 +330,9 @@ namespace eval ::ripecheck {
         if {![channel get $channel ripecheck.pubcmd]} { return 0 }
 
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
-            whois_find_server $ip $ip "" $nick $channel "" 2
+            ::ripecheck::whoisFindServer $ip $ip "" $nick $channel "" 2
         } else {
-            dnslookup $ip whois_find_server $nick $channel "" 2
+            dnslookup $ip ::ripecheck::whoisFindServer $nick $channel "" 2
         }
     }
 
@@ -350,7 +349,7 @@ namespace eval ::ripecheck {
 
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matching mask $matchmask using whois DB: $whoisdb"
 
-        if { $whoisdb == "unallocated" } {
+        if {$whoisdb == "unallocated"} {
             putlog "ripecheck: Unallocated netmask, bailing out!"
             return -1
         }
@@ -360,22 +359,20 @@ namespace eval ::ripecheck {
 
     proc whoisConnect { ip host nick channel orghost whoisdb whoisport test } {
         # Setup timeout
-        after $rtimeout * 1000 set ::state "timeout"
+        after $::ripecheck::rtimeout * 1000 set ::ripecheck::constate "timeout"
 
         if {[catch {socket -async $whoisdb $whoisport} sock]} {
             putlog "ripecheck: ERROR: Failed to connect to server $whoisdb!" ; return -1
         }
         fconfigure $sock -buffering line
         fileevent $sock writable [list ::ripecheck::whoisCallback $ip $host $nick $channel $orghost $sock $whoisdb $test]
-        vwait ::state
-        if { $::state == "timeout" } {
+        vwait ::ripecheck::constate
+        if { $::ripecheck::constate == "timeout" } {
             putlog "ripecheck: ERROR: Connection timeout against $whoisdb"; return -1
         }
     }
 
     proc whoisCallback { ip host nick channel orghost sock whoisdb test } {
-        global ::state
-
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering whois_callback..."
 
         if {[string equal {} [fconfigure $sock -error]]} {
@@ -384,7 +381,7 @@ namespace eval ::ripecheck {
             
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - State 'connected' with '$whoisdb'"
 
-            set ::state "connected"
+            set ::ripecheck::constate "connected"
 
             while {![eof $sock]} {
                 set row [gets $sock]
@@ -440,16 +437,14 @@ namespace eval ::ripecheck {
             
             close $sock
         } else {
-            set ::state "timeout"
+            set ::ripecheck::constate "timeout"
         }
     }
 
     # Add top resolv domain for channel and write settings to file
     proc addTopResolve { nick idx arg } {
-        global chanarr topresolv conflag
-
         if {[llength [split $arg]] != 2} {
-            _ripe_help_dcc $nick $idx +ripetopresolv; return 0
+            ::ripecheck::help $nick $idx addTopResolve; return 0
         }
         
         foreach {channel topdom} $arg {break}
@@ -460,22 +455,22 @@ namespace eval ::ripecheck {
         if {[validchan $channel]} {
             # It's pointless to set a resolv domain if no domains have been added for banning on the
             # current channel.
-            if {[info exists chanarr($channel)]} {
+            if {[info exists ::ripecheck::chanarr($channel)]} {
                 # If data exist extract into a list
-                if {[info exists topresolv($channel)]} {
+                if {[info exists ::ripecheck::topresolv($channel)]} {
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - topresolv exists"
-                    set dlist $topresolv($channel)
+                    set dlist $::ripecheck::topresolv($channel)
                     # top domain doesn't exist so lets add it
                     if {[lsearch -exact $dlist $topdom] == -1 } {
                         lappend dlist $topdom
-                        set topresolv($channel) $dlist
+                        set ::ripecheck::topresolv($channel) $dlist
                     } else {
                         putdcc $idx "\002RIPECHECK\002: Resolve domain '$topdom' already exist on $channel"; return 0
                     }
                 } else {
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - topresolv doesn't exist"
                     set dlist [list $topdom]
-                    set topresolv($channel) $dlist
+                    set ::ripecheck::topresolv($channel) $dlist
                 }
                 # Write to the ripecheck channel file
                 ::ripecheck::writeSettings
@@ -491,7 +486,7 @@ namespace eval ::ripecheck {
     # Remove resolve domain from channel and write settings to file
     proc delTopResolve { nick idx arg } {
         if {[llength [split $arg]] != 2} {
-            _ripe_help_dcc $nick $idx -ripetopresolv; return 0
+            ::ripecheck::help $nick $idx delTopResolve; return 0
         }
 
         foreach {channel topdom} $arg {break}
@@ -552,7 +547,7 @@ namespace eval ::ripecheck {
     # Add top domain to channel and write settings to file
     proc addTopDom { nick idx arg } {
         if {[llength [split $arg]] != 2} {
-            _ripe_help_dcc $nick $idx +ripetopdom; return 0
+            ::ripecheck::help $nick $idx addTopDom; return 0
         }
 
         foreach {channel topdom} $arg {break}
@@ -588,7 +583,7 @@ namespace eval ::ripecheck {
     # Remove top domain for channel and write settings to file
     proc delTopDom { nick idx arg } {
         if {[llength [split $arg]] != 2} {
-            _ripe_help_dcc $nick $idx -ripetopdom; return 0
+            ::ripecheck::help $nick $idx delTopDom; return 0
         }
 
         foreach {channel topdom} $arg {break}
@@ -627,10 +622,8 @@ namespace eval ::ripecheck {
     }
 
     proc banRreason { nick idx arg } {
-        global ripeconfig
-
         if {!([llength [split $arg]] > 0)} {
-            _ripe_help_dcc $nick $idx ripebanr; return 0
+            ::ripecheck::help $nick $idx banReason; return 0
         }
 
         set type [lindex [split $arg] 0]
@@ -642,12 +635,14 @@ namespace eval ::ripecheck {
                 unset ::ripecheck::config($type)
                 putdcc $idx "\002RIPECHECK\002: Successfully removed '$type'"
             } elseif {$text != ""} {
-                variable config($type) $text
+                set ::ripecheck::config($type) $text
                 putdcc $idx "\002RIPECHECK\002: Successfully added '$type' value '$text'"
+            } else {
+                putdcc $idx "\002RIPECHECK\002: Ban reason of type '$type' already removed"
             }
             ::ripecheck::writeSettings
         } else {
-            _ripe_help_dcc $nick $idx ripebanr; return 0
+            ::ripecheck::help $nick $idx banReason; return 0
         }
     }
 
@@ -729,47 +724,47 @@ namespace eval ::ripecheck {
                 putidx $idx "### \002help ripecheck\002"
                 putidx $idx "    This help page you're currently viewing"
             }
-            +ripetopresolv { 
-                putidx $idx "Usage: \002+ripetopresolv <channel> <pattern>\002"
-                putidx $idx "       Add a top domain or regexp pattern that you want to resolve for"
-                putidx $idx "       further ripe checking. It's possible that domains like com, info, org"
-                putidx $idx "       could be from a country that is banned in the top domain list."
-                putidx $idx "       Example (match .com): .+ripetopresolv #channel com"
-                putidx $idx "       Example (match everything): .+ripetopresolv #channel .*" 
-                putidx $idx "       Example (match .a-f*): .+ripetopresolv #channel \[a-f\]*"
+            addTopResolve { 
+                putidx $idx "### \002+ripetopresolv <channel> <pattern>\002"
+                putidx $idx "    Add a top domain or regexp pattern that you want to resolve for"
+                putidx $idx "    further ripe checking. It's possible that domains like com, info, org"
+                putidx $idx "    could be from a country that is banned in the top domain list."
+                putidx $idx "    Example (match .com): .+ripetopresolv #channel com"
+                putidx $idx "    Example (match everything): .+ripetopresolv #channel .*" 
+                putidx $idx "    Example (match .a-f*): .+ripetopresolv #channel \[a-f\]*"
             }
-            -ripetopresolv { 
-                putidx $idx "Usage: \002-ripetopresolv <channel> <pattern>\002"
-                putidx $idx "       Remove a top resolve domain or regexp pattern from the channel that"
-                putidx $idx "       you no longer wish to resolve."
+            delTopResolve { 
+                putidx $idx "### \002-ripetopresolv <channel> <pattern>\002"
+                putidx $idx "    Remove a top resolve domain or regexp pattern from the channel that"
+                putidx $idx "    you no longer wish to resolve."
             }
-            +ripetopdom {
-                putidx $idx "Usage: \002+ripetopdom <channel> <topdomain>\002"
-                putidx $idx "       Add a top domain for the channel that you wish to ban"
-                putidx $idx "       Example: .+ripetopdom #channel ro"
+            addTopDom {
+                putidx $idx "### \002+ripetopdom <channel> <topdomain>\002"
+                putidx $idx "    Add a top domain for the channel that you wish to ban"
+                putidx $idx "    Example: .+ripetopdom #channel ro"
             }
-            -ripetopdom {
-                putidx $idx "Usage: \002-ripetopdom <channel> <topdomain>\002"
-                putidx $idx "       Remove a top domain from the channel that you no longer"
-                putidx $idx "       wish to ban"
+            delTopDom {
+                putidx $idx "### \002-ripetopdom <channel> <topdomain>\002"
+                putidx $idx "    Remove a top domain from the channel that you no longer"
+                putidx $idx "    wish to ban"
             }
-            ripebanr {
-                putidx $idx "Usage: \002ripebanr <banreason|bantopreson> \[text\]\002"
-                putidx $idx "       Set custom ban reasons for 'banreason' and 'bantopreason'."
-                putidx $idx "       To restore the default message run the above command without \[text\]"
-                putidx $idx "       The \[text\] support substitutional keywords, current keywords are:"
-                putidx $idx "       %domain% = Topdomain used in 'bantopreason'"
-                putidx $idx "       %ripe% = Country code from the whois server, used in 'banreason'"
-                putidx $idx "       %nick% = Nickname for the user being banned, used in both 'banreason' and 'bantopreason'"
-                putidx $idx "       Example (topdomain reason): .ripebanr bantopreason Hello '%nick%, TLD '%domain%' is not allowed here"
-                putidx $idx "       Example (standard reason): .ripebanr banreason Sorry '%ripe' not allowed in here"
-                putidx $idx "       Example (restore default ban reason): .ripebanr banreason"
+            banReason {
+                putidx $idx "### \002ripebanr <banreason|bantopreson> \[text\]\002"
+                putidx $idx "    Set custom ban reasons for 'banreason' and 'bantopreason'."
+                putidx $idx "    To restore the default message run the above command without \[text\]"
+                putidx $idx "    The \[text\] support substitutional keywords, current keywords are:"
+                putidx $idx "    %domain% = Topdomain used in 'bantopreason'"
+                putidx $idx "    %ripe% = Country code from the whois server, used in 'banreason'"
+                putidx $idx "    %nick% = Nickname for the user being banned, used in both 'banreason' and 'bantopreason'"
+                putidx $idx "    Example (topdomain reason): .ripebanr bantopreason Hello '%nick%, TLD '%domain%' is not allowed here"
+                putidx $idx "    Example (standard reason): .ripebanr banreason Sorry '%ripe' not allowed in here"
+                putidx $idx "    Example (restore default ban reason): .ripebanr banreason"
             }
-            testripecheck {
-                putidx $idx "Usage: \002testripecheck <channel> <host>\002"
+            test {
+                putidx $idx "### \002testripecheck <channel> <host>\002"
             }
             default {*dcc:help $hand $idx [join $args]; return 0}
         }
     }
 }
-putlog "ripecheck v$::ripecheck::version by Ratler loaded"
+putlog "\002Ripecheck v$::ripecheck::version\002 by Ratler loaded"
