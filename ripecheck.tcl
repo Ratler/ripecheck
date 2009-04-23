@@ -331,7 +331,12 @@ namespace eval ::ripecheck {
         if {![channel get $channel ripecheck.pubcmd]} { return 0 }
 
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
-            ::ripecheck::whoisFindServer $ip $ip "" $nick $channel "" 2
+            set iptype [::ip::type $ip]
+            if {$iptype != "normal"} {
+                puthelp "PRIVMSG $channel :ripecheck: Sorry but '$ip' is from a '$iptype' range"
+            } else {
+                ::ripecheck::whoisFindServer $ip $ip "" $nick $channel "" 2
+            }
         } else {
             dnslookup $ip ::ripecheck::whoisFindServer $nick $channel "" 2
         }
@@ -344,6 +349,13 @@ namespace eval ::ripecheck {
             return 0
         }
 
+        # Abort if we stumble upon a private or reserved net range
+        set iptype [::ip::type $ip]
+        if {$iptype != "normal"} {
+            putlog "ripecheck: '$ip' is from a '$iptype' range. No further action taken."
+            return 0
+        }
+        
         set matchmask [::ip::longestPrefixMatch $ip $::ripecheck::maskarray]
         set whoisdb [string tolower $::ripecheck::maskhash($matchmask)]
         set whoisport 43
