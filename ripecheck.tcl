@@ -527,11 +527,13 @@ namespace eval ::ripecheck {
     # List channel and top resolv domains
     proc settings { nick idx arg } {
         putdcc $idx "### \002Settings\002 - Ripecheck v$::ripecheck::version by Ratler ###"
-        if {[array size ::ripecheck::chanarr] > 0 && [array size ::ripecheck::topresolv] > 0} {
+        if {[array size ::ripecheck::chanarr] > 0} {
             foreach channel [array names ::ripecheck::chanarr] {
                 putdcc $idx "### \002Channel:\002 $channel"
                 putdcc $idx "    \002Banned domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
-                putdcc $idx "    \002Resolve domains:\002 [join $::ripecheck::topresolv($channel) ", "]"
+                if {[info exists ::ripecheck::topresolv($channel)]} {
+                    putdcc $idx "    \002Resolve domains:\002 [join $::ripecheck::topresolv($channel) ", "]"
+                }
             }
         } else {
             putdcc $idx "### No channel settings exist."
