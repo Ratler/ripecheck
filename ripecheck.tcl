@@ -165,15 +165,16 @@ namespace eval ::ripecheck {
         set fid [open $::ripecheck::iplistfile r]
         while { ![eof $fid] } {
             gets $fid line
-            if {[regexp {^\#} $line]} {
-                continue
+            if {[regexp {^[0-9]} $line]} {
+                regexp -nocase {^([0-9\.\/]+)[[:space:]]+([a-z0-9\.]+)} $line dummy mask whoisdb
+                lappend ::ripecheck::maskarray $mask
+                set ::ripecheck::maskhash($mask) $whoisdb
             }
-            regexp {^([0-9\.\/]+)[[:space:]]+([a-z\.]+)} $line dummy mask whoisdb
-            lappend ::ripecheck::maskarray $mask
-            set maskhash($mask) $whoisdb
         }
         close $fid
-        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - IP file loaded with [llength $::ripecheck::maskarray] netmasks"
+        # These to log entries should _ALWAYS_ be of the same size, otherwise something is wrong
+        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - IP file loaded with [llength $::ripecheck::maskarray] netmask(s)"
+        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - IP file loaded with [array size ::ripecheck::maskhash] whois entries"
     }
 
     # Read settings - only at startup
