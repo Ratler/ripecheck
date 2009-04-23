@@ -433,10 +433,24 @@ namespace eval ::ripecheck {
                 }
             }
 
+            close $sock
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - End of while-loop in whois_callback"
-            
+
+            # TODO: Make this a bit prettier, duplicated code is not nice
             if {[info exists country]} {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - $whoisdb answer: $country Test: $test"
+                if {$test == 1} {
+                    ::ripecheck::testripecheck $ip $host $channel $country
+                } elseif {$test == 2} {
+                    puthelp "PRIVMSG $channel :ripecheck: $host is located in '$country'"
+                } else {
+                    ::ripecheck::ripecheck $ip $host $nick $channel $orghost $country
+                }
+            } elseif {[::ripecheck::lastResortMasks $ip] != ""} {
+                # Last resort, check if we get a match from hardcoded netmasks
+                set country [::ripecheck::lastResortMasks $ip]
+                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Got '$country' from lastResortMasks"
+
                 if {$test == 1} {
                     ::ripecheck::testripecheck $ip $host $channel $country
                 } elseif {$test == 2} {
@@ -447,8 +461,6 @@ namespace eval ::ripecheck {
             } else {
                 putlog "ripecheck: No country found for '$ip'. No further action taken. (Possible bug?)"
             }
-            
-            close $sock
         } else {
             set ::ripecheck::constate "timeout"
         }
@@ -658,6 +670,22 @@ namespace eval ::ripecheck {
             ::ripecheck::writeSettings
         } else {
             ::ripecheck::help $nick $idx banReason; return 0
+        }
+    }
+
+    # Define whois overrides for netmasks with incomplete records
+    proc lastResortMasks { ip } {
+        set masks(24.16.0.0/13) "us"
+        set masks(24.20.0.0/15) "us"
+
+        # Create a list from the masks array
+        foreach mask [array names masks] {
+            lappend masklist $mask
+        }
+
+        set matchmask [::ip::longestPrefixMatch $ip $masklist]
+        if {$matchmask != ""} {
+            return $masks($matchmask)
         }
     }
 
