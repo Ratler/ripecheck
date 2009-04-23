@@ -514,7 +514,7 @@ namespace eval ::ripecheck {
                 }
 
             } else {
-                putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."
+                putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."; return 0
             }
             # Write to the ripecheck channel file
             ::ripecheck::writeSettings
@@ -613,7 +613,7 @@ namespace eval ::ripecheck {
                 }
 
             } else {
-                putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."
+                putdcc $idx "\002RIPECHECK\002: Nothing to do, no settings found for $channel."; return 0
             }
             # Write to the ripecheck channel file
             ::ripecheck::writeSettings
@@ -624,7 +624,7 @@ namespace eval ::ripecheck {
         }
     }
 
-    proc banRreason { nick idx arg } {
+    proc banReason { nick idx arg } {
         if {!([llength [split $arg]] > 0)} {
             ::ripecheck::help $nick $idx banReason; return 0
         }
