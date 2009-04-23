@@ -114,7 +114,7 @@
 193.0.0.0/8	whois.ripe.net
 194.0.0.0/7	whois.ripe.net
 196.0.0.0/7	whois.afrinic.net
-196.0.0.0/7	whois.arin.net
+198.0.0.0/7	whois.arin.net
 
 200.17.0.0/16	whois.nic.br
 200.18.0.0/15	whois.nic.br
