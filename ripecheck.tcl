@@ -419,38 +419,32 @@ namespace eval ::ripecheck {
                         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Following referral server, new server is '$referral', port '$whoisport'"
                         ::ripecheck::whoisConnect $ip $host $nick $channel $orghost $referral $whoisport $test
 
-                        return 0
+                        return 1
                     } elseif {[regexp -line -nocase {^rwhois://.*} $referral]} {
                         # Ignore rwhois for now  
                         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Ignoring rwhois referral"
                         continue
                     } else {
                         putlog "ripecheck: ERROR: Unknown referral type from '$whoisdb' for ip '$ip', please bug report this line."
-                        close $sock; return -1
+                        close $sock; return 0
                     }
                 } elseif {[regexp -line -nocase {country:\s*([a-z]{2,4})} $row -> country]} {
                     set country [string tolower $country]
+                    putloglev $::ripecheck::conflag * "ripecheck: DEBUG - $whoisdb answer: $country"
                 }
             }
 
             close $sock
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - End of while-loop in whois_callback"
 
-            # TODO: Make this a bit prettier, duplicated code is not nice
-            if {[info exists country]} {
-                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - $whoisdb answer: $country Test: $test"
-                if {$test == 1} {
-                    ::ripecheck::testripecheck $ip $host $channel $country
-                } elseif {$test == 2} {
-                    puthelp "PRIVMSG $channel :ripecheck: $host is located in '$country'"
-                } else {
-                    ::ripecheck::ripecheck $ip $host $nick $channel $orghost $country
-                }
-            } elseif {[::ripecheck::lastResortMasks $ip] != ""} {
+            if {![info exists country] && [::ripecheck::lastResortMasks $ip] != ""} {
                 # Last resort, check if we get a match from hardcoded netmasks
                 set country [::ripecheck::lastResortMasks $ip]
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Got '$country' from lastResortMasks"
-
+            }
+            
+            if {[info exists country]} {
+                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Running mode: $test for country: $country"
                 if {$test == 1} {
                     ::ripecheck::testripecheck $ip $host $channel $country
                 } elseif {$test == 2} {
@@ -676,7 +670,10 @@ namespace eval ::ripecheck {
     # Define whois overrides for netmasks with incomplete records
     proc lastResortMasks { ip } {
         set masks(24.16.0.0/13) "us"
-        set masks(24.20.0.0/15) "us"
+        set masks(208.151.241.0/24) "us"
+        set masks(208.151.242.0/23) "us"
+        set masks(208.151.244.0/22) "us"
+        set masks(208.151.248.0/21) "us"
 
         # Create a list from the masks array
         foreach mask [array names masks] {
