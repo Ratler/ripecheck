@@ -172,7 +172,7 @@ namespace eval ::ripecheck {
             }
         }
         close $fid
-        # These to log entries should _ALWAYS_ be of the same size, otherwise something is wrong
+        # These two variables should _ALWAYS_ be of the same size, otherwise something is wrong
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - IP file loaded with [llength $::ripecheck::maskarray] netmask(s)"
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - IP file loaded with [array size ::ripecheck::maskhash] whois entries"
     }
@@ -206,7 +206,7 @@ namespace eval ::ripecheck {
         # Exclude ops, voice, friends
         if {[matchattr $handle fov|fov $channel]} {
             putloglev $::ripecheck::conflag * "ripecheck: $nick is on exempt list"
-            return 0
+            return 1
         }
 
         # Check if channel has a domain list or complain about it and then abort
@@ -234,7 +234,7 @@ namespace eval ::ripecheck {
                     putlog "ripecheck: Matched top domain '$domain' banning *!*.$domain for $bantime minute(s)"
                     newchanban $channel "*!*@*.$domain" ripecheck $banreason $bantime
                     
-                    return 0
+                    return 1
                 }
             }
         }
@@ -266,13 +266,14 @@ namespace eval ::ripecheck {
     }
 
     proc ripecheck { ip host nick channel orghost ripe } {
+        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripecheck()"
         set bantime [channel get $channel ripecheck.bantime]
         foreach country $::ripecheck::chanarr($channel) {
             if {![string compare $ripe $country]} {
                 set template [list %nick% $nick \
                                   %ripe% $ripe]
                 if {[info exists ::ripecheck::config(banreason)]} {
-                    set banreason [::ripecheck::replaceTemplate $::ripecheck::config(banreason) $template]
+                    set banreason [::ripecheck::templateReplace $::ripecheck::config(banreason) $template]
                 } else {
                     set banreason "RIPE Country Check: Matched .$ripe"
                 }
