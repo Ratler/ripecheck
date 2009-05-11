@@ -1,4 +1,17 @@
 ChangeLog:
+3.0:    - Ripecheck is now using the namespace ::ripecheck
+	- Fixed duplicate entry in iplist.txt
+	- Fixed minor issue with .ripesettings
+	- Fixed an issue with the parsing of iplist.txt that caused a few invalid entries
+	  being loaded
+	- Ripecheck should now detect private and reserved net ranges, ie RFC1918 addresses
+	- Added last resort function that will lookup an ip in a static function. This function
+	  is used when the whois record is incomplete so that a country can't be determined
+	- Fixed a few minor return values
+	- NEW! Added !ripeinfo <host> command, it will return a few lines of the whois record for the 
+	  host via NOTICE to the nick who sent the query. !ripeinfo works in channel and through /msg
+	  to the bot
+	
 2.6.1:  - Ripecheck will now correctly handle channel name in lower case
 	
 2.6: 	- Ignore rwhois referrals
