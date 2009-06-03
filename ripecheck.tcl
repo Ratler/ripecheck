@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.0  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.0.1  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -160,7 +160,7 @@ bind msg -|- !ripeinfo ::ripecheck::msgRipeInfo
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.0"
+    variable version "3.0.1"
 
     variable maskarray
     variable chanarr
@@ -273,6 +273,15 @@ namespace eval ::ripecheck {
         }
     }
 
+    proc notifySender { nick channel rtype msg } {
+        putloglev $::ripecheck::conflag * "ripecheck: DEBUG: Entering notifySender()"
+        if {$rtype == "pubRipeCheck"} {
+            puthelp "PRIVMSG $channel :ripecheck: $msg"
+        } elseif {$rtype == "pubRipeInfo"} {
+            puthelp "NOTICE $nick :ripecheck: $msg"
+        }
+    }
+
     proc ripecheck { ip host nick channel orghost ripe } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripecheck()"
         set bantime [channel get $channel ripecheck.bantime]
@@ -348,7 +357,7 @@ namespace eval ::ripecheck {
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
             set iptype [::ip::type $ip]
             if {$iptype != "normal"} {
-                puthelp "PRIVMSG $channel :ripecheck: Sorry but '$ip' is from a '$iptype' range"
+                ::ripecheck::notifySender $nick $channel $rtype "Sorry but '$ip' is from a '$iptype' range"
             } else {
                 ::ripecheck::whoisFindServer $ip $ip "" $nick $channel "" $rtype
             }
@@ -376,6 +385,7 @@ namespace eval ::ripecheck {
     # Lookup which whois server to query and call whois_connect
     proc whoisFindServer { ip host status nick channel orghost rtype } {
         if {$status == 0} {
+            ::ripecheck::notifySender $nick $channel $rtype "Failed to resolve '$host'!"
             putlog "ripecheck: Couldn't resolve '$host'. No further action taken."
             return 0
         }
@@ -394,6 +404,7 @@ namespace eval ::ripecheck {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matching mask $matchmask using whois DB: $whoisdb"
 
         if {$whoisdb == "unallocated"} {
+            ::ripecheck::notifySender $nick $channel $rtype "Unallocated netmask!"
             putlog "ripecheck: Unallocated netmask, bailing out!"
             return -1
         }
@@ -406,12 +417,14 @@ namespace eval ::ripecheck {
         after $::ripecheck::rtimeout * 1000 set ::ripecheck::constate "timeout"
 
         if {[catch {socket -async $whoisdb $whoisport} sock]} {
+            ::ripecheck::notifySender $nick $channel $rtype "ERROR: Failed to connect to '$whoisdb'!"
             putlog "ripecheck: ERROR: Failed to connect to server $whoisdb!" ; return -1
         }
         fconfigure $sock -buffering line
         fileevent $sock writable [list ::ripecheck::whoisCallback $ip $host $nick $channel $orghost $sock $whoisdb $rtype]
         vwait ::ripecheck::constate
         if { $::ripecheck::constate == "timeout" } {
+            ::ripecheck::notifySender $nick $channel $rtype "ERROR: Connection timeout using '$whoisdb'!"
             putlog "ripecheck: ERROR: Connection timeout against $whoisdb"; return -1
         }
     }
@@ -494,7 +507,7 @@ namespace eval ::ripecheck {
                         ::ripecheck::testripecheck $ip $host $channel $whoisdata(country)
                     }
                     pubRipeCheck {
-                        puthelp "PRIVMSG $channel :ripecheck: $host is located in '$whoisdata(country)'"
+                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in '$whoisdata(country)'"
                     }
                     pubRipeInfo {
                         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - switch $rtype"
@@ -505,6 +518,8 @@ namespace eval ::ripecheck {
                     }
                 }
             } else {
+                # Respond that something went wrong
+                ::ripecheck::notifySender $nick $channel $rtype "Whois query failed for '$host'!"
                 putlog "ripecheck: No country found for '$ip'. No further action taken. (Possible bug?)"
             }
         } else {
