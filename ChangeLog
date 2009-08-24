@@ -1,4 +1,5 @@
 ChangeLog:
+3.0.2:  - New IPV4 allocations
 3.0.1:	- Fixed an issue using public commands where ripecheck did not alert nick/channel when something went wrong.
 
 3.0:    - Ripecheck is now using the namespace ::ripecheck
