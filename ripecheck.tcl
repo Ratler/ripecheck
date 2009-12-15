@@ -493,7 +493,7 @@ namespace eval ::ripecheck {
 
             if {![info exists whoisdata(country)] && [::ripecheck::lastResortMasks $ip] != ""} {
                 # Last resort, check if we get a match from hardcoded netmasks
-                set country [::ripecheck::lastResortMasks $ip]
+                set whoisdata(country) [::ripecheck::lastResortMasks $ip]
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Got '$whoisdata(country)' from lastResortMasks"
             }
 
@@ -737,6 +737,7 @@ namespace eval ::ripecheck {
     # Define whois overrides for netmasks with incomplete records
     proc lastResortMasks { ip } {
         set masks(24.16.0.0/13) "us"
+        set masks(24.239.32.0/19) "us"
         set masks(208.151.241.0/24) "us"
         set masks(208.151.242.0/23) "us"
         set masks(208.151.244.0/22) "us"
