@@ -1,6 +1,8 @@
+2.0.0.0/8  whois.ripe.net
 24.132.0.0/14	whois.ripe.net
 41.0.0.0/8	whois.afrinic.net
 43.0.0.0/8	whois.v6nic.net
+46.0.0.0/8  whois.ripe.net
 51.0.0.0/8  whois.ripe.net
 59.0.0.0/11	whois.nic.or.kr
 58.0.0.0/7	whois.apnic.net
