@@ -1,4 +1,8 @@
 ChangeLog:
+3.0.3:  - New IPV4 allocations
+	- Fixed a bug that prevented lastResortMasks from working
+	- Added new last resort mask
+	- Optimized help text a bit
 3.0.2:  - New IPV4 allocations
 3.0.1:	- Fixed an issue using public commands where ripecheck did not alert nick/channel when something went wrong.
 
