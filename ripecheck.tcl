@@ -16,7 +16,7 @@
 # * Now has help pages, see .help ripecheck
 ###
 # Require / Depends:
-# tcllib >= 1.8
+# tcllib >= 1.8  (http://www.tcl.tk/software/tcllib/)
 ###
 # Usage:
 # Load the script and change the topdomains you
@@ -131,6 +131,10 @@ namespace eval ::ripecheck {
 
     # Path to channel settings file
     variable chanfile "ripecheckchan.dat"
+    
+    # Path to tld country list file
+    variable tldfile "scripts/tld_country_list.txt"
+
 }
 # ---- Only edit stuff below this line if you know what you are doing ----
 
@@ -167,6 +171,7 @@ namespace eval ::ripecheck {
     variable topresolv
     variable config
     variable constate
+    variable tldtocountry
 
     # Parse ip list file
     if {[file exists $::ripecheck::iplistfile]} {
@@ -203,13 +208,27 @@ namespace eval ::ripecheck {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Top resolv domains loaded for [array size ::ripecheck::topresolv] channel(s)"
     }
 
+    # Read tld_country_list
+    if {[file exists $::ripecheck::tldfile]} {
+        set ftld [open $::ripecheck::tldfile r]
+        while { ![eof $ftld] } {
+            gets $ftld line
+            if {[regexp {^[a-z]} $line]} {
+                regexp -nocase {^([a-z]{2,6})[[:space:]]+(.*)} $line -> tld country
+                set ::ripecheck::tldtocountry($tld) $country
+            }
+        }
+        close $ftld
+        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - TLD country list loaded with [array size ::ripecheck::tldtocountry] entries"
+    }
+
     # Functions
     proc onJoin { nick host handle channel } {
         # Lower case channel
         set channel [string tolower $channel]
 
         # Only run if channel is defined
-        if {![channel get $channel ripecheck]} { return 0 }
+        if {![channel get $channel ripecheck]} { return 1 }
 
         # Exclude ops, voice, friends
         if {[matchattr $handle fov|fov $channel]} {
@@ -220,7 +239,7 @@ namespace eval ::ripecheck {
         # Check if channel has a domain list or complain about it and then abort
         if {![info exists ::ripecheck::chanarr($channel)]} {
             putlog "ripecheck: Ripecheck is enabled but '$channel' has no domain list!"
-            return 0
+            return 1
         }
 
         # Get IP/Host part
@@ -229,18 +248,21 @@ namespace eval ::ripecheck {
         # Top domain ban if enabled
         if {[channel get $channel ripecheck.topban]} {
             set htopdom [lindex [split $iphost "."] end]
-            foreach domain $::ripecheck::chanarr($channel) {
-                if {![string compare $htopdom $domain]} {
+            foreach tld $::ripecheck::chanarr($channel) {
+                if {![string compare $htopdom $tld]} {
+                    set country [::ripecheck::getCountry $tld]
                     set template [list %nick% $nick \
-                                      %domain% $domain]
+                                       %domain% $tld \
+                                       %tld% $tld \
+                                       %country% $country]
                     set bantime [channel get $channel ripecheck.bantime]
                     if {[info exists ::ripecheck::config(bantopreason)]} {
                         set banreason [::ripecheck::templateReplace $::ripecheck::config(bantopreason) $template]
                     } else {
-                        set banreason "RIPE Country Check: Top domain .$domain is banned."
+                        set banreason "RIPE Country Check: Top domain .$tld is banned."
                     }
-                    putlog "ripecheck: Matched top domain '$domain' banning *!*.$domain for $bantime minute(s)"
-                    newchanban $channel "*!*@*.$domain" ripecheck $banreason $bantime
+                    putlog "ripecheck: Matched top domain '$tld' banning *!*.$tld for $bantime minute(s)"
+                    newchanban $channel "*!*@*.$tld" ripecheck $banreason $bantime
 
                     return 1
                 }
@@ -276,7 +298,7 @@ namespace eval ::ripecheck {
     proc notifySender { nick channel rtype msg } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG: Entering notifySender()"
         if {$rtype == "pubRipeCheck"} {
-            puthelp "PRIVMSG $channel :ripecheck: $msg"
+            puthelp "PRIVMSG $channel :$nick: \[ripecheck\] $msg"
         } elseif {$rtype == "pubRipeInfo"} {
             puthelp "NOTICE $nick :ripecheck: $msg"
         }
@@ -285,16 +307,19 @@ namespace eval ::ripecheck {
     proc ripecheck { ip host nick channel orghost ripe } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripecheck()"
         set bantime [channel get $channel ripecheck.bantime]
-        foreach country $::ripecheck::chanarr($channel) {
-            if {![string compare $ripe $country]} {
+        foreach tld $::ripecheck::chanarr($channel) {
+            if {![string compare $ripe $tld]} {
+                set country [::ripecheck::getCountry $tld]
                 set template [list %nick% $nick \
-                                  %ripe% $ripe]
+                                   %ripe% $tld \
+                                   %tld% $tld \
+                                   %country% $country]
                 if {[info exists ::ripecheck::config(banreason)]} {
                     set banreason [::ripecheck::templateReplace $::ripecheck::config(banreason) $template]
                 } else {
-                    set banreason "RIPE Country Check: Matched .$ripe"
+                    set banreason "RIPE Country Check: Matched $country\[$tld\]"
                 }
-                putlog "ripecheck: Matched country '$ripe' banning $nick!$orghost for $bantime minute(s)"
+                putlog "ripecheck: Matched country $country\[$tld\] banning $nick!$orghost for $bantime minute(s)"
                 newchanban $channel "*!*@$host" ripecheck $banreason $bantime
                 # Break the loop since we found a match
                 break
@@ -406,7 +431,7 @@ namespace eval ::ripecheck {
         if {$whoisdb == "unallocated"} {
             ::ripecheck::notifySender $nick $channel $rtype "Unallocated netmask!"
             putlog "ripecheck: Unallocated netmask, bailing out!"
-            return -1
+            return 0
         }
 
         ::ripecheck::whoisConnect $ip $host $nick $channel $orghost $whoisdb $whoisport $rtype
@@ -474,7 +499,7 @@ namespace eval ::ripecheck {
                         putlog "ripecheck: ERROR: Unknown referral type from '$whoisdb' for ip '$ip', please bug report this line."
                         close $sock; return 0
                     }
-                } elseif {[regexp -line -nocase {country:\s*([a-z]{2,4})} $row -> data]} {
+                } elseif {[regexp -line -nocase {country:\s*([a-z]{2,6})} $row -> data]} {
                     set whoisdata(country) [string tolower $data]
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - $whoisdb answer: $whoisdata(country)"
                 } elseif {[regexp -line -nocase {netname:\s*(.*)} $row -> data]} {
@@ -507,7 +532,8 @@ namespace eval ::ripecheck {
                         ::ripecheck::testripecheck $ip $host $channel $whoisdata(country)
                     }
                     pubRipeCheck {
-                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in '$whoisdata(country)'"
+                        set country [::ripecheck::getCountry $whoisdata(country)]
+                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country\[$whoisdata(country)\]"
                     }
                     pubRipeInfo {
                         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - switch $rtype"
@@ -753,7 +779,19 @@ namespace eval ::ripecheck {
             return $masks($matchmask)
         }
     }
+    
+    # Return a country based on tld or return "" if no country is found
+    proc getCountry { tld } {
+        if {[array size ::ripecheck::tldtocountry] > 0} {
+            set country $::ripecheck::tldtocountry($tld)
+            if {$country != ""} {
+                return $country
+            }
+        }
+        return ""
+    }
 
+    # Return modified text based on template list
     proc templateReplace { text subs } {
         foreach {arg1 arg2} $subs {
             regsub -all -- $arg1 $text $arg2 text

@@ -3,7 +3,7 @@ Requirements:
 * tcllib >= 1.8
 
 Installation:
-1) Copy ripcheck.tcl and iplist.txt to your scripts directory
+1) Copy ripcheck.tcl, iplist.txt and tld_country_list.txt to your scripts directory
 
 2) (Optional, defaults should suffice) Edit ripecheck.tcl and 
    modify path to iplist.txt and settings file
@@ -13,9 +13,8 @@ Installation:
 
 That's it!
 
-Question or problems?
-* Contact ratler _at_ stderr.eu or talk with me online on UnderNET or
-  freenode, nick Ratler.
+Question or problem?
+Contact ratler _at_ stderr.eu or online at UnderNET or freenode, nick Ratler.
 
 
 For latest snapshots of ripecheck visit:
