@@ -874,11 +874,11 @@ namespace eval ::ripecheck {
                 putidx $idx "    Set custom ban reasons for 'banreason' and 'bantopreason'."
                 putidx $idx "    To restore the default message run the above command without \[text\]"
                 putidx $idx "    The \[text\] support substitutional keywords, current keywords are:"
-                putidx $idx "    %domain% = Topdomain used in 'bantopreason'"
-                putidx $idx "    %ripe% = Country code from the whois server, used in 'banreason'"
-                putidx $idx "    %nick% = Nickname for the user being banned, used in both 'banreason' and 'bantopreason'"
-                putidx $idx "    Example (topdomain reason): .ripebanr bantopreason Hello '%nick%, TLD '%domain%' is not allowed here"
-                putidx $idx "    Example (standard reason): .ripebanr banreason Sorry '%ripe' not allowed in here"
+                putidx $idx "    %tld% = Top level domain, ie .us, .se, .no"
+                putidx $idx "    %country% = Country name"
+                putidx $idx "    %nick% = Nickname of the user being banned"
+                putidx $idx "    Example (topdomain reason): .ripebanr bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
+                putidx $idx "    Example (standard reason): .ripebanr banreason Sorry %country%(%tld%) is not allowed in here"
                 putidx $idx "    Example (restore default ban reason): .ripebanr banreason"
             }
             ripesettings {
