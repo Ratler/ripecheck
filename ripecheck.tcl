@@ -741,7 +741,7 @@ namespace eval ::ripecheck {
         }
 
         set type [lindex [split $arg] 0]
-        set text [lrange [split $arg] 1 end]
+        set text [join [lrange [split $arg] 1 end]]
 
         if {($type == "banreason") || ($type == "bantopreason") } {
             # Lets clear the ban reason
@@ -895,7 +895,7 @@ namespace eval ::ripecheck {
                     putidx $idx "   \002+ripetopresolv    -ripetopresolv    +ripetopdom    -ripetopdom\002"
                     putidx $idx "   \002ripebanr          ripesettings      testripecheck\002"
                 }
-                return 0
+                return 1
             }
         }
     }
