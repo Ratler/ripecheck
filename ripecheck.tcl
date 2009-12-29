@@ -406,7 +406,7 @@ namespace eval ::ripecheck {
 
     proc msgRipeCheck { nick host handle ip } {
         # Check if msgcmds is enabled
-        if {[info exists ::ripecheck::config(msgcmds)] && [string is boolean $::ripecheck::config(msgcmds)] && [string is true $::ripecheck::config(msgcmds)]} {
+        if {[::ripecheck::isConfigEnabled msgcmds]} {
             ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeCheck
         }
         return 0
@@ -420,7 +420,7 @@ namespace eval ::ripecheck {
 
     proc msgRipeInfo { nick host handle ip } {
         # Check if msgcmds is enabled
-        if {[info exists ::ripecheck::config(msgcmds)] && [string is boolean $::ripecheck::config(msgcmds)] && [string is true $::ripecheck::config(msgcmds)]} {
+        if {[::ripecheck::isConfigEnabled msgcmds]} {
             ::ripecheck::pubParseIp $nick $host $handle "" $ip pubRipeInfo
         }
         return 0
@@ -529,14 +529,23 @@ namespace eval ::ripecheck {
                     set whoisdata(mntby) $data
                 } elseif {[regexp -line -nocase {inetnum:\s*(.*)} $row -> data]} {
                     set whoisdata(inetnum) $data
+                } elseif {[regexp -line {.*\((NET-[0-9]{1,3}-[0-9]{1,3}-[0-9]{1,3}.*)\)} $row -> data]} {
+                    set whoisdata(fallback) $data
                 }
             }
 
             close $sock
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - End of while-loop in whois_callback"
 
+            # Experimental feature that might replace lastResortMasks in the future
+            if {[::ripecheck::isConfigEnabled fallback] && ![info exists whoisdata(country)] && [info exists whoisdata(fallback)]} {
+                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Using fallback method (EXPERIMENTAL) for '$whoisdata(fallback)' original host was $host ($ip)"
+                ::ripecheck::whoisConnect $whoisdata(fallback) $host $nick $channel $orghost $whoisdb 43 $rtype
+                return 1
+            }
+
+            # Last resort, check if we get a match from hardcoded netmasks
             if {![info exists whoisdata(country)] && [::ripecheck::lastResortMasks $ip] != ""} {
-                # Last resort, check if we get a match from hardcoded netmasks
                 set whoisdata(country) [::ripecheck::lastResortMasks $ip]
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Got '$whoisdata(country)' from lastResortMasks"
             }
@@ -686,7 +695,7 @@ namespace eval ::ripecheck {
         set allowed_str_opts [list banreason bantopreason]
 
         # Allowed boolean options
-        set allowed_bool_opts [list msgcmds]
+        set allowed_bool_opts [list msgcmds fallback]
 
         set option [string tolower [lindex [split $arg] 0]]
         set value [join [lrange [split $arg] 1 end]]
@@ -843,6 +852,13 @@ namespace eval ::ripecheck {
         return $text
     }
 
+    proc isConfigEnabled { option } {
+        if {[info exists ::ripecheck::config($option)] && [string is boolean $::ripecheck::config($option)] && [string is true $::ripecheck::config($option)]} {
+            return true
+        }
+        return false
+    }
+
     proc writeSettings { } {
         # Backup file in case something goes wrong
         if {[file exists $::ripecheck::chanfile]} {
@@ -919,6 +935,10 @@ namespace eval ::ripecheck {
                 putidx $idx "     banreason \[string\]    : Set custom ban reason, support substitutional keywords, see below"
                 putidx $idx "     bantopreason \[string\] : Set custom TLD ban reason, support substitutional keywords, see below"
                 putidx $idx "     msgcmds \[boolean\]     : Enable or Disable commands through private message"
+                putidx $idx "     fallback \[boolean\]    : \002EXPERIMENTAL!!! Use with caution!\002"
+                putidx $idx "                             This function will _try_ to detect country for an host where the whois server"
+                putidx $idx "                             only return a few NET-XXX-XXX-XXX-XXX entries."
+                putidx $idx "                             The intention is to replace lastResortMask."
                 putidx $idx "    \002Examples\002:"
                 putidx $idx "     TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
                 putidx $idx "     Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
