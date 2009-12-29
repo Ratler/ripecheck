@@ -159,6 +159,7 @@ bind dcc m|ov ripebanr ::ripecheck::banReason
 bind dcc -|- ripesettings ::ripecheck::settings
 bind dcc -|- help ::ripecheck::help
 bind pub -|- !ripecheck ::ripecheck::pubRipeCheck
+bind msg -|- !ripecheck ::ripecheck::msgRipeCheck
 bind pub -|- !ripeinfo ::ripecheck::pubRipeInfo
 bind msg -|- !ripeinfo ::ripecheck::msgRipeInfo
 
@@ -299,8 +300,8 @@ namespace eval ::ripecheck {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG: Entering notifySender()"
         if {$rtype == "pubRipeCheck"} {
             puthelp "PRIVMSG $channel :$nick: \[ripecheck\] $msg"
-        } elseif {$rtype == "pubRipeInfo"} {
-            puthelp "NOTICE $nick :ripecheck: $msg"
+        } elseif {$rtype == "pubRipeInfo" || $rtype == "msgRipeCheck"} {
+            puthelp "PRIVMSG $nick :ripecheck: $msg"
         }
     }
 
@@ -360,11 +361,11 @@ namespace eval ::ripecheck {
     proc ripeInfo { nick inetnum netname mntby country descr } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripeInfo()"
 
-        puthelp "NOTICE $nick :Inetnum: $inetnum"
-        puthelp "NOTICE $nick :Netname: $netname"
-        puthelp "NOTICE $nick :mnt-by: $mntby"
-        puthelp "NOTICE $nick :Country: $country"
-        puthelp "NOTICE $nick :Description: $descr"
+        puthelp "PRIVMSG $nick :Inetnum: $inetnum"
+        puthelp "PRIVMSG $nick :Netname: $netname"
+        puthelp "PRIVMSG $nick :mnt-by: $mntby"
+        puthelp "PRIVMSG $nick :Country: $country"
+        puthelp "PRIVMSG $nick :Description: $descr"
     }
 
     proc testripecheck { ip host channel ripe } {
@@ -395,6 +396,10 @@ namespace eval ::ripecheck {
         set channel [string tolower $channel]
         if {![channel get $channel ripecheck.pubcmd]} { return 0 }
         ::ripecheck::pubParseIp $nick $host $handle $channel $ip pubRipeCheck
+    }
+
+    proc msgRipeCheck { nick host handle ip } {
+        ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeCheck
     }
 
     proc pubRipeInfo { nick host handle channel ip } {
@@ -524,6 +529,7 @@ namespace eval ::ripecheck {
 
             if {[info exists whoisdata(country)]} {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Running mode: '$rtype' for country: $whoisdata(country)"
+                set country [::ripecheck::getCountry $whoisdata(country)]
                 switch -- $rtype {
                     ripecheck {
                         ::ripecheck::ripecheck $ip $host $nick $channel $orghost $whoisdata(country)
@@ -532,11 +538,12 @@ namespace eval ::ripecheck {
                         ::ripecheck::testripecheck $ip $host $channel $whoisdata(country)
                     }
                     pubRipeCheck {
-                        set country [::ripecheck::getCountry $whoisdata(country)]
-                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country\[$whoisdata(country)\]"
+                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country\[[string toupper $whoisdata(country)]\]"
+                    }
+                    msgRipeCheck {
+                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country\[[string toupper $whoisdata(country)]\]"
                     }
                     pubRipeInfo {
-                        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - switch $rtype"
                         ::ripecheck::ripeInfo $nick $whoisdata(inetnum) $whoisdata(netname) $whoisdata(mntby) $whoisdata(country) $whoisdata(descr)
                     }
                     default {
