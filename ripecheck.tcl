@@ -405,7 +405,11 @@ namespace eval ::ripecheck {
     }
 
     proc msgRipeCheck { nick host handle ip } {
-        ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeCheck
+        # Check if msgcmds is enabled
+        if {[info exists ::ripecheck::config(msgcmds)] && [string is boolean $::ripecheck::config(msgcmds)] && [string is true $::ripecheck::config(msgcmds)]} {
+            ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeCheck
+        }
+        return 0
     }
 
     proc pubRipeInfo { nick host handle channel ip } {
@@ -415,7 +419,11 @@ namespace eval ::ripecheck {
     }
 
     proc msgRipeInfo { nick host handle ip } {
-        ::ripecheck::pubParseIp $nick $host $handle "" $ip pubRipeInfo
+        # Check if msgcmds is enabled
+        if {[info exists ::ripecheck::config(msgcmds)] && [string is boolean $::ripecheck::config(msgcmds)] && [string is true $::ripecheck::config(msgcmds)]} {
+            ::ripecheck::pubParseIp $nick $host $handle "" $ip pubRipeInfo
+        }
+        return 0
     }
 
     # Lookup which whois server to query and call whois_connect
