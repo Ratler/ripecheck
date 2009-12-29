@@ -13,7 +13,7 @@
 #   to find hosts that actually have an ip from a country
 #   you wish to ban. Now also support regexp pattern matching.
 # * Custom ban messages
-# * Now has help pages, see .help ripecheck
+# * Manual pages, see .help ripecheck
 ###
 # Require / Depends:
 # tcllib >= 1.8  (http://www.tcl.tk/software/tcllib/)
@@ -63,19 +63,25 @@
 # Remove a top domain from the channel that you no longer
 # wish to ban
 #
-# ripebanr <banreason|bantopreson> [text]
-# Set custom ban reasons for 'banreason' and 'bantopreason'.
-# To restore the default message run the above command without [text]"
-# The [text] support substitutional keywords, current keywords are:
-# %domain% = Topdomain used in 'bantopreason'"
-# %ripe% = Country code from the whois server, used in 'banreason'"
-# %nick% = Nickname for the user being banned, used in both 'banreason' and 'bantopreason'"
-# Example (topdomain reason): .ripebanr bantopreason Hello '%nick%, TLD '%domain%' is not allowed here"
-# Example (standard reason): .ripebanr banreason Sorry '%ripe' not allowed in here"
-# Example (restore default ban reason): .ripebanr banreason"
-#
 # ripesettings
 # List current channel settings
+#
+# ripeconfig <option> [value]"
+#  Options:"
+#   banreason [string]    : Set custom ban reason, support substitutional keywords, see below"
+#   bantopreason [string] : Set custom TLD ban reason, support substitutional keywords, see below"
+#   msgcmds [boolean]     : Enable or Disable commands through private message"
+#  Examples:"
+#   TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
+#   Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
+#   Enable msgcmds: .ripeconfig msgcmds on"
+#   Disable msgcmds: .ripeconfig msgcmds off"
+#  Substitutional keywords, current keywords are:"
+#   %tld% = Top level domain, ie .us, .se, .no"
+#   %country% = Country name"
+#   %nick% = Nickname of the user being banned"
+#  *NOTE*:"
+#   To completely remove an option from the configuration leave \[value\] blank, ie .ripeconfig msgcmds"
 #
 # help ripecheck
 # View ripecheck command help page through dcc console
@@ -155,7 +161,6 @@ bind dcc m|ov +ripetopdom ::ripecheck::addTopDom
 bind dcc m|ov -ripetopdom ::ripecheck::delTopDom
 bind dcc m|ov +ripetopresolv ::ripecheck::addTopResolve
 bind dcc m|ov -ripetopresolv ::ripecheck::delTopResolve
-bind dcc m|ov ripebanr ::ripecheck::banReason
 bind dcc m|ov ripeconfig ::ripecheck::config
 bind dcc -|- ripesettings ::ripecheck::settings
 bind dcc -|- help ::ripecheck::help
@@ -791,31 +796,6 @@ namespace eval ::ripecheck {
         }
     }
 
-    proc banReason { nick idx arg } {
-        if {!([llength [split $arg]] > 0)} {
-            ::ripecheck::help $nick $idx ripebanr; return 0
-        }
-
-        set type [lindex [split $arg] 0]
-        set text [join [lrange [split $arg] 1 end]]
-
-        if {($type == "banreason") || ($type == "bantopreason") } {
-            # Lets clear the ban reason
-            if {$text == "" && [info exists ::ripecheck::config($type)]} {
-                unset ::ripecheck::config($type)
-                putdcc $idx "\002RIPECHECK\002: Successfully removed '$type'"
-            } elseif {$text != ""} {
-                set ::ripecheck::config($type) $text
-                putdcc $idx "\002RIPECHECK\002: Successfully added '$type' value '$text'"
-            } else {
-                putdcc $idx "\002RIPECHECK\002: Ban reason of type '$type' already removed"
-            }
-            ::ripecheck::writeSettings
-        } else {
-            ::ripecheck::help $nick $idx ripebanr; return 0
-        }
-    }
-
     # Define whois overrides for netmasks with incomplete records
     proc lastResortMasks { ip } {
         set masks(24.16.0.0/13) "us"
@@ -895,7 +875,6 @@ namespace eval ::ripecheck {
                 ::ripecheck::help $hand $idx -ripetopresolv
                 ::ripecheck::help $hand $idx +ripetopdom
                 ::ripecheck::help $hand $idx -ripetopdom
-                ::ripecheck::help $hand $idx ripebanr
                 ::ripecheck::help $hand $idx ripesettings
                 ::ripecheck::help $hand $idx ripeconfig
                 ::ripecheck::help $hand $idx testripecheck
@@ -925,18 +904,6 @@ namespace eval ::ripecheck {
                 putidx $idx "### \002-ripetopdom <channel> <topdomain>\002"
                 putidx $idx "    Remove a top domain from the channel that you no longer"
                 putidx $idx "    wish to ban"
-            }
-            ripebanr {
-                putidx $idx "### \002ripebanr <banreason|bantopreson> \[text\]\002"
-                putidx $idx "    Set custom ban reasons for 'banreason' and 'bantopreason'."
-                putidx $idx "    To restore the default message run the above command without \[text\]"
-                putidx $idx "    The \[text\] support substitutional keywords, current keywords are:"
-                putidx $idx "    %tld% = Top level domain, ie .us, .se, .no"
-                putidx $idx "    %country% = Country name"
-                putidx $idx "    %nick% = Nickname of the user being banned"
-                putidx $idx "    Example (topdomain reason): .ripebanr bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
-                putidx $idx "    Example (standard reason): .ripebanr banreason Sorry %country%(%tld%) is not allowed in here"
-                putidx $idx "    Example (restore default ban reason): .ripebanr banreason"
             }
             ripeconfig {
                 putidx $idx "### \002ripeconfig <option> \[value\]\002"
@@ -968,7 +935,7 @@ namespace eval ::ripecheck {
                 if {[llength [split $arg]] == 0} {
                     putidx $idx "\n\nripecheck v$::ripecheck::version commands:"
                     putidx $idx "   \002+ripetopresolv    -ripetopresolv    +ripetopdom    -ripetopdom\002"
-                    putidx $idx "   \002ripebanr          ripesettings      ripeconfig     testripecheck\002"
+                    putidx $idx "   \002ripesettings      ripeconfig        testripecheck\002"
                 }
                 return 1
             }
