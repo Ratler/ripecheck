@@ -131,7 +131,7 @@ namespace eval ::ripecheck {
 
     # Path to channel settings file
     variable chanfile "ripecheckchan.dat"
-    
+
     # Path to tld country list file
     variable tldfile "scripts/tld_country_list.txt"
 
@@ -156,6 +156,7 @@ bind dcc m|ov -ripetopdom ::ripecheck::delTopDom
 bind dcc m|ov +ripetopresolv ::ripecheck::addTopResolve
 bind dcc m|ov -ripetopresolv ::ripecheck::delTopResolve
 bind dcc m|ov ripebanr ::ripecheck::banReason
+bind dcc m|ov ripeconfig ::ripecheck::config
 bind dcc -|- ripesettings ::ripecheck::settings
 bind dcc -|- help ::ripecheck::help
 bind pub -|- !ripecheck ::ripecheck::pubRipeCheck
@@ -657,12 +658,60 @@ namespace eval ::ripecheck {
         } else {
             putdcc $idx "### No channel settings exist."
         }
-        if {[info exists ::ripecheck::config(banreason)]} {
-            putdcc $idx "### \002Ban reason:\002 [join $::ripecheck::config(banreason)]"
+        foreach option [array names ::ripecheck::config] {
+            putdcc $idx "### \002$option:\002 $::ripecheck::config($option)"
         }
-        if {[info exists ::ripecheck::config(bantopreason)]} {
-            putdcc $idx "### \002Ban TLD reason:\002 [join $::ripecheck::config(bantopreason)]"
+    }
+
+    # Function to set general options
+    proc config { nick idx arg } {
+        if {!([llength [split $arg]] > 0)} {
+            ::ripecheck::help $nick $idx ripeconfig; return 0
         }
+
+        # Allowed string options
+        set allowed_str_opts [list banreason bantopreason]
+
+        # Allowed boolean options
+        set allowed_bool_opts [list msgcmds]
+
+        set option [string tolower [lindex [split $arg] 0]]
+        set value [join [lrange [split $arg] 1 end]]
+
+
+        # Check option type
+        if {[lsearch -exact $allowed_str_opts $option] != -1} {
+            if {$value != ""} {
+                set ::ripecheck::config($option) $value
+                putdcc $idx "\002RIPECHECK\002: Option '$option' set with the value '$value'"
+            } else {
+                if {[info exists ::ripecheck::config($option)]} {
+                    unset ::ripecheck::config($option)
+                }
+                # Always output unset msg for convenience
+                putdcc $idx "\002RIPECHECK\002: Option '$option' unset"
+            }
+        } elseif {[lsearch -exact $allowed_bool_opts $option] != -1} {
+            set value [string tolower $value]
+            if {[string is boolean $value] && $value != ""} {
+                set ::ripecheck::config($option) $value
+                putdcc $idx "\002RIPECHECK\002: Option '$option' set with the value '$value'"
+            } elseif { $value == "" } {
+                if {[info exists ::ripecheck::config($option)]} {
+                    unset ::ripecheck::config($option)
+                }
+                # Always output unset msg for convenience
+                putdcc $idx "\002RIPECHECK\002: Option '$option' unset"
+            } else {
+                putdcc $idx "\002RIPECHECK\002: Value '$value' is not a boolean, should be true|false|on|off|1|0"
+                return 0
+            }
+        } else {
+            putdcc $idx "\002RIPECHECK\002: Invalid option '$option', valid options are: [join $allowed_str_opts ", "], [join $allowed_bool_opts ", "]"
+            return 0
+        }
+
+        ::ripecheck::writeSettings
     }
 
     # Add top domain to channel and write settings to file
@@ -786,7 +835,7 @@ namespace eval ::ripecheck {
             return $masks($matchmask)
         }
     }
-    
+
     # Return a country based on tld or return "" if no country is found
     proc getCountry { tld } {
         if {[array size ::ripecheck::tldtocountry] > 0} {
@@ -848,6 +897,7 @@ namespace eval ::ripecheck {
                 ::ripecheck::help $hand $idx -ripetopdom
                 ::ripecheck::help $hand $idx ripebanr
                 ::ripecheck::help $hand $idx ripesettings
+                ::ripecheck::help $hand $idx ripeconfig
                 ::ripecheck::help $hand $idx testripecheck
                 putidx $idx "### \002help ripecheck\002"
                 putidx $idx "    This help page you're currently viewing"
@@ -888,6 +938,24 @@ namespace eval ::ripecheck {
                 putidx $idx "    Example (standard reason): .ripebanr banreason Sorry %country%(%tld%) is not allowed in here"
                 putidx $idx "    Example (restore default ban reason): .ripebanr banreason"
             }
+            ripeconfig {
+                putidx $idx "### \002ripeconfig <option> \[value\]\002"
+                putidx $idx "    \002Options\002:"
+                putidx $idx "     banreason \[string\]    : Set custom ban reason, support substitutional keywords, see below"
+                putidx $idx "     bantopreason \[string\] : Set custom TLD ban reason, support substitutional keywords, see below"
+                putidx $idx "     msgcmds \[boolean\]     : Enable or Disable commands through private message"
+                putidx $idx "    \002Examples\002:"
+                putidx $idx "     TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
+                putidx $idx "     Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
+                putidx $idx "     Enable msgcmds: .ripeconfig msgcmds on"
+                putidx $idx "     Disable msgcmds: .ripeconfig msgcmds off"
+                putidx $idx "    \002Substitutional keywords, current keywords are\002:"
+                putidx $idx "     %tld% = Top level domain, ie .us, .se, .no"
+                putidx $idx "     %country% = Country name"
+                putidx $idx "     %nick% = Nickname of the user being banned"
+                putidx $idx "    \002*NOTE*\002:"
+                putidx $idx "      To completely remove an option from the configuration leave \[value\] blank, ie .ripeconfig msgcmds"
+            }
             ripesettings {
                 putidx $idx "### \002ripesettings\002"
                 putidx $idx "    View current settings"
@@ -900,7 +968,7 @@ namespace eval ::ripecheck {
                 if {[llength [split $arg]] == 0} {
                     putidx $idx "\n\nripecheck v$::ripecheck::version commands:"
                     putidx $idx "   \002+ripetopresolv    -ripetopresolv    +ripetopdom    -ripetopdom\002"
-                    putidx $idx "   \002ripebanr          ripesettings      testripecheck\002"
+                    putidx $idx "   \002ripebanr          ripesettings      ripeconfig     testripecheck\002"
                 }
                 return 1
             }
