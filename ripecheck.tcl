@@ -366,11 +366,16 @@ namespace eval ::ripecheck {
 
     proc ripeInfo { nick inetnum netname mntby country descr } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripeInfo()"
+        set countryname [::ripecheck::getCountry $country]
 
         puthelp "PRIVMSG $nick :Inetnum: $inetnum"
         puthelp "PRIVMSG $nick :Netname: $netname"
         puthelp "PRIVMSG $nick :mnt-by: $mntby"
-        puthelp "PRIVMSG $nick :Country: $country"
+        if {$countryname == ""} {
+            puthelp "PRIVMSG $nick :Country: $country"
+        } else {
+            puthelp "PRIVMSG $nick :Country: $countryname \[[string toupper $country]\]"
+        }
         puthelp "PRIVMSG $nick :Description: $descr"
     }
 
@@ -478,6 +483,7 @@ namespace eval ::ripecheck {
         set whoisdata(inetnum) "No info"
         set whoisdata(netname) "No info"
         set whoisdata(mntby) "No info"
+        set whoisdata(descr) "No info"
 
         if {[string equal {} [fconfigure $sock -error]]} {
             puts $sock $ip
