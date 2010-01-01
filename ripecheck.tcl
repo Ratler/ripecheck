@@ -70,8 +70,12 @@
 #  Options:"
 #   banreason [string]    : Set custom ban reason, support substitutional keywords, see below"
 #   bantopreason [string] : Set custom TLD ban reason, support substitutional keywords, see below"
-#   msgcmds [boolean]     : Enable or Disable commands through private message"
-#  Examples:"
+#   msgcmds [on|off]      : Enable or Disable commands through private message"
+#   fallback [on|off]     : EXPERIMENTAL!!! Use with caution!
+#                           This function will _try_ to detect country for an host where the whois server
+#                           only return a few NET-XXX-XXX-XXX-XXX entries.
+#                           The intention is to replace lastResortMask.
+#  Examples:
 #   TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
 #   Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
 #   Enable msgcmds: .ripeconfig msgcmds on"
@@ -91,6 +95,7 @@
 # !ripeinfo <host>
 #
 # Private msg commands:
+# !ripecheck <host>
 # !ripeinfo <host>
 ###
 # Tested:
@@ -102,7 +107,7 @@
 # on how to reproduce the issue.
 ###
 # LICENSE:
-# Copyright (C) 2006 - 2009  Stefan Wold <ratler@stderr.eu>
+# Copyright (C) 2006 - 2010  Stefan Wold <ratler@stderr.eu>
 #
 # This code comes with ABSOLUTELY NO WARRANTY
 #
@@ -940,8 +945,8 @@ namespace eval ::ripecheck {
                 putidx $idx "    \002Options\002:"
                 putidx $idx "     banreason \[string\]    : Set custom ban reason, support substitutional keywords, see below"
                 putidx $idx "     bantopreason \[string\] : Set custom TLD ban reason, support substitutional keywords, see below"
-                putidx $idx "     msgcmds \[boolean\]     : Enable or Disable commands through private message"
-                putidx $idx "     fallback \[boolean\]    : \002EXPERIMENTAL!!! Use with caution!\002"
+                putidx $idx "     msgcmds \[on|off\]      : Enable or Disable commands through private message"
+                putidx $idx "     fallback \[on|off\]     : \002EXPERIMENTAL!!! Use with caution!\002"
                 putidx $idx "                             This function will _try_ to detect country for an host where the whois server"
                 putidx $idx "                             only return a few NET-XXX-XXX-XXX-XXX entries."
                 putidx $idx "                             The intention is to replace lastResortMask."
