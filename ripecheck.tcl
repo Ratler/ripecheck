@@ -11,9 +11,9 @@
 # * Custom bantime
 # * Support extra resolving for domains like info, com, net, org
 #   to find hosts that actually have an ip from a country
-#   you wish to ban. Now also support regexp pattern matching.
+#   you wish to ban.
 # * Custom ban messages
-# * Manual pages, see .help ripecheck
+# * Builtin help pages, see .help ripecheck
 ###
 # Require / Depends:
 # tcllib >= 1.8  (http://www.tcl.tk/software/tcllib/)
@@ -43,15 +43,14 @@
 # chanset <channel> <+/->ripecheck.pubcmd
 # Enable (+) or disable (-) public commands (!ripecheck)
 #
-# +ripetopresolv <channel> <pattern>
+# +ripetopresolv <channel> <topdomain|*>
 # Add a top domain or regexp pattern that you want to resolve for
 # further ripe checking. It's possible that domains like com, info, org
 # could be from a country that is banned in the top domain list.
 # Example (match .com): .+ripetopresolv #channel com
-# Example (match everything): .+ripetopresolv #channel .*
-# Example (match .a-f*): .+ripetopresolv #channel [a-f]*
+# Example (match everything): .+ripetopresolv #channel *
 #
-# -ripetopresolv <channel> <pattern>
+# -ripetopresolv <channel> <topdomain|*>
 # Remove a top resolve domain or regexp pattern from the channel that
 # you no longer wish to resolve.
 #
@@ -260,24 +259,22 @@ namespace eval ::ripecheck {
         # Top domain ban if enabled
         if {[channel get $channel ripecheck.topban]} {
             set htopdom [lindex [split $iphost "."] end]
-            foreach tld $::ripecheck::chanarr($channel) {
-                if {![string compare $htopdom $tld]} {
-                    set country [::ripecheck::getCountry $tld]
-                    set template [list %nick% $nick \
-                                       %domain% $tld \
-                                       %tld% $tld \
-                                       %country% $country]
-                    set bantime [channel get $channel ripecheck.bantime]
-                    if {[info exists ::ripecheck::config(bantopreason)]} {
-                        set banreason [::ripecheck::templateReplace $::ripecheck::config(bantopreason) $template]
-                    } else {
-                        set banreason "RIPE Country Check: Top domain .$tld is banned."
-                    }
-                    putlog "ripecheck: Matched top domain '$tld' banning *!*.$tld for $bantime minute(s)"
-                    newchanban $channel "*!*@*.$tld" ripecheck $banreason $bantime
-
-                    return 1
+            if {[lsearch -exact $::ripecheck::chanarr($channel) $htopdom] != -1} {
+                set country [::ripecheck::getCountry $htopdom]
+                set template [list %nick% $nick \
+                                   %domain% $htopdom \
+                                   %tld% $htopdom \
+                                   %country% $country]
+                set bantime [channel get $channel ripecheck.bantime]
+                if {[info exists ::ripecheck::config(bantopreason)]} {
+                    set banreason [::ripecheck::templateReplace $::ripecheck::config(bantopreason) $template]
+                } else {
+                    set banreason "RIPE Country Check: Top domain .$htopdom is banned."
                 }
+                putlog "ripecheck: Matched top domain '$htopdom' banning *!*@*.$htopdom for $bantime minute(s)"
+                newchanban $channel "*!*@*.$htopdom" ripecheck $banreason $bantime
+
+                return 1
             }
         }
 
@@ -286,23 +283,18 @@ namespace eval ::ripecheck {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Found numeric IP $iphost ... scanning"
             ::ripecheck::whoisFindServer $iphost $iphost 1 $nick $channel $host ripecheck
         } elseif {[channel get $channel ripecheck.topchk]} {
-            # Check if channel has a resolv domain list or complain about it and then abort
+            # Check if channel has a resolve domain list or complain about it and then abort
             if {![info exists ::ripecheck::topresolv($channel)]} {
                 putlog "ripecheck: Ripecheck is enabled but '$channel' has no resolve domain list!"
                 return 0
             }
 
-            putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Trying to resolve host ..."
+            putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Checking if host match the top resolve list..."
 
             set htopdom [lindex [split $iphost "."] end]
-            foreach domain $::ripecheck::topresolv($channel) {
-                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - domain: $domain ip: $iphost"
-                if {[regexp "^$domain$" $htopdom]} {
-                    putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched resolve domain '$domain'"
-                    dnslookup $iphost ::ripecheck::whoisFindServer $nick $channel $host ripecheck
-                    # Break the loop since we found a match
-                    break
-                }
+            if {[lsearch -exact $::ripecheck::topresolv($channel) "*"] != -1 || [lsearch -exact $::ripecheck::topresolv($channel) $htopdom] != -1} {
+                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched top resolve domain '$htopdom' for host '$iphost'"
+                dnslookup $iphost ::ripecheck::whoisFindServer $nick $channel $host ripecheck
             }
         }
     }
@@ -319,23 +311,19 @@ namespace eval ::ripecheck {
     proc ripecheck { ip host nick channel orghost ripe } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripecheck()"
         set bantime [channel get $channel ripecheck.bantime]
-        foreach tld $::ripecheck::chanarr($channel) {
-            if {![string compare $ripe $tld]} {
-                set country [::ripecheck::getCountry $tld]
-                set template [list %nick% $nick \
-                                   %ripe% $tld \
-                                   %tld% $tld \
-                                   %country% $country]
-                if {[info exists ::ripecheck::config(banreason)]} {
-                    set banreason [::ripecheck::templateReplace $::ripecheck::config(banreason) $template]
-                } else {
-                    set banreason "RIPE Country Check: Matched $country\[$tld\]"
-                }
-                putlog "ripecheck: Matched country $country\[$tld\] banning $nick!$orghost for $bantime minute(s)"
-                newchanban $channel "*!*@$host" ripecheck $banreason $bantime
-                # Break the loop since we found a match
-                break
+        if {[lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1} {
+            set country [::ripecheck::getCountry $tld]
+            set template [list %nick% $nick \
+                               %ripe% $ripe \
+                               %tld% $ripe \
+                               %country% $country]
+            if {[info exists ::ripecheck::config(banreason)]} {
+                set banreason [::ripecheck::templateReplace $::ripecheck::config(banreason) $template]
+            } else {
+                set banreason "RIPE Country Check: Matched $country \[$ripe\]"
             }
+            putlog "ripecheck: Matched country $country \[$ripe\] banning $nick!$orghost for $bantime minute(s)"
+            newchanban $channel "*!*@$host" ripecheck $banreason $bantime
         }
     }
 
@@ -349,19 +337,25 @@ namespace eval ::ripecheck {
         set channel [string tolower $channel]
 
         if {[validchan $channel]} {
+            # First we check if topban is enabled
+            if {[channel get $channel ripecheck.topban]} {
+                set htopdom [lindex [split $ip "."] end]
+                if {[lsearch -exact $::ripecheck::chanarr($channel) $htopdom] != -1} {
+                    putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Topban matched '$htopdom' for host '$ip', host would get banned!"
+                    return 1
+                }
+            }
+
             if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
                 ::ripecheck::whoisFindServer $ip "" ""  $nick $channel "" testRipeCheck
             } else {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Resolving..."
                 set htopdom [lindex [split $ip "."] end]
-                foreach domain $::ripecheck::topresolv($channel) {
-                    putloglev $::ripecheck::conflag * "ripecheck: DEBUG - channel: $channel domain: $domain ip: $ip top domain: $htopdom"
-                    if {[regexp "^$domain$" $htopdom]} {
-                        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched resolve domain '$domain' for $channel"
-                        dnslookup $ip ::ripecheck::whoisFindServer $nick $channel "" testRipeCheck
-                        # Break the loop since we found a match
-                        break
-                    }
+                if {[lsearch -exact $::ripecheck::topresolv($channel) "*"] != -1 || [lsearch -exact $::ripecheck::topresolv($channel) $htopdom] != -1} {
+                    putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched top resolve domain '$htopdom' for host '$ip' on '$channel'"
+                    dnslookup $ip ::ripecheck::whoisFindServer $nick $channel "" testRipeCheck
+                } else {
+                    putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Host '$ip' did not match one of the top resolve domains"
                 }
             }
         } else {
@@ -385,13 +379,10 @@ namespace eval ::ripecheck {
     }
 
     proc testripecheck { ip host channel ripe } {
-        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Got country: $ripe"
-        foreach country $::ripecheck::chanarr($channel) {
-            if {![string compare $ripe $country]} {
-                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched '$ripe' for $ip on channel $channel."
-                # Break the loop since we found a match
-                break
-            }
+        if {[lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1} {
+            putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Testripecheck matched country '$ripe' for host '$host ($ip)' on channel '$channel', host would get banned!"
+        } else {
+            putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Testripecheck host '$host ($ip)' would _not_ get banned!"
         }
     }
 
@@ -917,17 +908,16 @@ namespace eval ::ripecheck {
                 putidx $idx "    This help page you're currently viewing"
             }
             +ripetopresolv {
-                putidx $idx "### \002+ripetopresolv <channel> <pattern>\002"
+                putidx $idx "### \002+ripetopresolv <channel> <topdomain|*>\002"
                 putidx $idx "    Add a top domain or regexp pattern that you want to resolve for"
                 putidx $idx "    further ripe checking. It's possible that domains like com, info, org"
                 putidx $idx "    could be from a country that is banned in the top domain list."
                 putidx $idx "    Example (match .com): .+ripetopresolv #channel com"
-                putidx $idx "    Example (match everything): .+ripetopresolv #channel .*"
-                putidx $idx "    Example (match .a-f*): .+ripetopresolv #channel \[a-f\]*"
+                putidx $idx "    Example (match everything): .+ripetopresolv #channel *"
             }
             -ripetopresolv {
-                putidx $idx "### \002-ripetopresolv <channel> <pattern>\002"
-                putidx $idx "    Remove a top resolve domain or regexp pattern from the channel that"
+                putidx $idx "### \002-ripetopresolv <channel> <topdomain|*>\002"
+                putidx $idx "    Remove a top resolve domain or * from the channel that"
                 putidx $idx "    you no longer wish to resolve."
             }
             +ripetopdom {
