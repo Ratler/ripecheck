@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.1-rc1  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.1  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -175,7 +175,7 @@ bind msg -|- !ripeinfo ::ripecheck::msgRipeInfo
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.1-rc1"
+    variable version "3.1"
 
     variable maskarray
     variable chanarr
