@@ -312,7 +312,8 @@ namespace eval ::ripecheck {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripecheck()"
         set bantime [channel get $channel ripecheck.bantime]
         if {[lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1} {
-            set country [::ripecheck::getCountry $tld]
+            putloglev $::ripecheck::conflag * "ripecheck: DEBUG - ripecheck() matched '$ripe'"
+            set country [::ripecheck::getCountry $ripe]
             set template [list %nick% $nick \
                                %ripe% $ripe \
                                %tld% $ripe \
