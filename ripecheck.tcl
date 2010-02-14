@@ -180,6 +180,7 @@ bind pub -|- !ripecheck ::ripecheck::pubRipeCheck
 bind msg -|- !ripecheck ::ripecheck::msgRipeCheck
 bind pub -|- !ripeinfo ::ripecheck::pubRipeInfo
 bind msg -|- !ripeinfo ::ripecheck::msgRipeInfo
+bind pub -|- !ripestatus ::ripecheck::pubRipeStatus
 
 namespace eval ::ripecheck {
     # Global variables
@@ -191,6 +192,7 @@ namespace eval ::ripecheck {
     variable config
     variable constate
     variable tldtocountry
+    variable bancount
 
     # Parse ip list file
     if {[file exists $::ripecheck::iplistfile]} {
@@ -220,6 +222,8 @@ namespace eval ::ripecheck {
                 set ::ripecheck::topresolv([string tolower [lindex [split $line :] 1]]) [split [lindex [split $line :] 2] ,]
             } elseif {[regexp {^config} $line]} {
                 set ::ripecheck::config([lindex [split $line :] 1]) [lindex [split $line :] 2]
+            } elseif {[regexp {^stats:bancount} $line]} {
+                set ::ripecheck::bancount([lindex [split $line :] 2]) [lindex [split $line :] 3]
             }
         }
         close $fchan
@@ -281,6 +285,7 @@ namespace eval ::ripecheck {
                     set banreason "RIPE Country Check: Top domain .$htopdom is banned."
                 }
                 putlog "ripecheck: Matched top domain '$htopdom' banning *!*@*.$htopdom for $bantime minute(s)"
+                ::ripecheck::incrBanCount $channel
                 newchanban $channel "*!*@*.$htopdom" ripecheck $banreason $bantime
 
                 return 1
@@ -334,8 +339,25 @@ namespace eval ::ripecheck {
                 set banreason "RIPE Country Check: Matched $country \[$ripe\]"
             }
             putlog "ripecheck: Matched country $country \[$ripe\] banning $nick!$orghost for $bantime minute(s)"
+            ::ripecheck::incrBanCount $channel
             newchanban $channel "*!*@$host" ripecheck $banreason $bantime
         }
+    }
+
+    proc incrBanCount { channel } {
+        if {![info exists ::ripecheck::bancount($channel)]} {
+            set ::ripecheck::bancount($channel) 1
+        } else {
+            set ::ripecheck::bancount($channel) [expr $::ripecheck::bancount($channel) + 1]
+        }
+        ::ripecheck::writeSettings
+    }
+
+    proc getBanCount { channel } {
+        if {![info exists ::ripecheck::bancount($channel)]} {
+            return 0
+        }
+        return $::ripecheck::bancount($channel)
     }
 
     proc test { nick idx arg } {
@@ -399,6 +421,16 @@ namespace eval ::ripecheck {
         }
     }
 
+    proc status { channel } {
+        puthelp "PRIVMSG $channel :Ripecheck v$::ripecheck::version -- Status $channel"
+        if {[channel get $channel ripecheck.whitelist]} {
+            puthelp "PRIVMSG $channel : Allowed top domains: [llength $::ripecheck::chanarr($channel)]"
+        } else {
+            puthelp "PRIVMSG $channel : Banned top domains: [llength $::ripecheck::chanarr($channel)]"
+        }
+        puthelp "PRIVMSG $channel : Total bans set: [::ripecheck::getBanCount $channel]"
+    }
+
     proc pubParseIp { nick host handle channel ip rtype } {
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
             set iptype [::ip::type $ip]
@@ -438,6 +470,12 @@ namespace eval ::ripecheck {
             ::ripecheck::pubParseIp $nick $host $handle "" $ip pubRipeInfo
         }
         return 0
+    }
+
+    proc pubRipeStatus { nick host handle channel ip } {
+        set channel [string tolower $channel]
+        if {![channel get $channel ripecheck.pubcmd]} { return 0 }
+        ::ripecheck::status $channel
     }
 
     # Lookup which whois server to query and call whois_connect
@@ -898,6 +936,9 @@ namespace eval ::ripecheck {
         }
         foreach key [array names ::ripecheck::config] {
             puts $fp "config:$key:[join $::ripecheck::config($key)]"
+        }
+        foreach key [array names ::ripecheck::bancount] {
+            puts $fp "stats:bancount:$key:$::ripecheck::bancount($key)"
         }
         close $fp
     }
