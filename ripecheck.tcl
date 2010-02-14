@@ -99,6 +99,7 @@
 # Public channel commands:
 # !ripecheck <host>
 # !ripeinfo <host>
+# !ripestatus
 #
 # Private msg commands:
 # !ripecheck <host>
