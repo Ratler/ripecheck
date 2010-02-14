@@ -43,6 +43,13 @@
 # chanset <channel> <+/->ripecheck.pubcmd
 # Enable (+) or disable (-) public commands (!ripecheck)
 #
+# chanset <channel> <+/->ripecheck.whitelist
+# Enable (+) or disable (-) whitelist mode
+# The whitelist mode reverse the ripecheck behavior when matching
+# a country against the topdomain list. Instead of banning a country that
+# exist in the topdomain list it will let that host enter the channel and ban
+# everyone else.
+#
 # +ripetopresolv <channel> <topdomain|*>
 # Add a top domain or regexp pattern that you want to resolve for
 # further ripe checking. It's possible that domains like com, info, org
@@ -153,6 +160,7 @@ setudef flag ripecheck
 setudef flag ripecheck.topchk
 setudef flag ripecheck.topban
 setudef flag ripecheck.pubcmd
+setudef flag ripecheck.whitelist
 setudef int ripecheck.bantime
 
 # Packages
@@ -257,9 +265,10 @@ namespace eval ::ripecheck {
         regexp ".+@(.+)" $host matches iphost
 
         # Top domain ban if enabled
-        if {[channel get $channel ripecheck.topban]} {
+        if {[channel get $channel ripecheck.topban] && ![regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
             set htopdom [lindex [split $iphost "."] end]
-            if {[lsearch -exact $::ripecheck::chanarr($channel) $htopdom] != -1} {
+            if {(![channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] != -1) || \
+                ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] == -1)} {
                 set country [::ripecheck::getCountry $htopdom]
                 set template [list %nick% $nick \
                                    %domain% $htopdom \
@@ -311,7 +320,8 @@ namespace eval ::ripecheck {
     proc ripecheck { ip host nick channel orghost ripe } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripecheck()"
         set bantime [channel get $channel ripecheck.bantime]
-        if {[lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1} {
+        if {(![channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1) || \
+            ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] == -1)} {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - ripecheck() matched '$ripe'"
             set country [::ripecheck::getCountry $ripe]
             set template [list %nick% $nick \
@@ -339,9 +349,10 @@ namespace eval ::ripecheck {
 
         if {[validchan $channel]} {
             # First we check if topban is enabled
-            if {[channel get $channel ripecheck.topban]} {
+            if {[channel get $channel ripecheck.topban] && ![regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
                 set htopdom [lindex [split $ip "."] end]
-                if {[lsearch -exact $::ripecheck::chanarr($channel) $htopdom] != -1} {
+                if {(![channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] != -1) || \
+                    ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] == -1)} {
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Topban matched '$htopdom' for host '$ip', host would get banned!"
                     return 1
                 }
@@ -380,7 +391,8 @@ namespace eval ::ripecheck {
     }
 
     proc testripecheck { ip host channel ripe } {
-        if {[lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1} {
+        if {(![channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1) || \
+            ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] == -1)} {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Testripecheck matched country '$ripe' for host '$host ($ip)' on channel '$channel', host would get banned!"
         } else {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Testripecheck host '$host ($ip)' would _not_ get banned!"
@@ -675,7 +687,13 @@ namespace eval ::ripecheck {
         if {[array size ::ripecheck::chanarr] > 0} {
             foreach channel [array names ::ripecheck::chanarr] {
                 putdcc $idx "### \002Channel:\002 $channel"
-                putdcc $idx "    \002Banned domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
+                if {[channel get $channel ripecheck.whitelist]} {
+                    putdcc $idx "    Whitelist mode: On"
+                    putdcc $idx "    \002Allowed domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
+                } else {
+                    putdcc $idx "    Whitelist mode: Off"
+                    putdcc $idx "    \002$Banned domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
+                }
                 if {[info exists ::ripecheck::topresolv($channel)]} {
                     putdcc $idx "    \002Resolve domains:\002 [join $::ripecheck::topresolv($channel) ", "]"
                 }
@@ -898,6 +916,12 @@ namespace eval ::ripecheck {
                 putidx $idx "    Enable (+) or disable (-) top domain banning based on the topdomain list"
                 putidx $idx "### \002chanset <channel> <+/->ripecheck.pubcmd\002"
                 putidx $idx "    Enable (+) or disable (-) public commands (!ripecheck)"
+                putidx $idx "### \002chanset <channel> <+/->ripecheck.whitelist\002"
+                putidx $idx "    Enable (+) or disable (-) whitelist mode"
+                putidx $idx "    The whitelist mode reverse the ripecheck behavior when matching"
+                putidx $idx "    a country against the topdomain list. Instead of banning a country that"
+                putidx $idx "    exist in the topdomain list it will let that host enter the channel and ban"
+                putidx $idx "    everyone else."
                 ::ripecheck::help $hand $idx +ripetopresolv
                 ::ripecheck::help $hand $idx -ripetopresolv
                 ::ripecheck::help $hand $idx +ripetopdom
