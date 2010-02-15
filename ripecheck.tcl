@@ -273,7 +273,7 @@ namespace eval ::ripecheck {
         if {[channel get $channel ripecheck.topban] && ![regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
             set htopdom [lindex [split $iphost "."] end]
             if {(![channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] != -1) || \
-                ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] == -1)} {
+                ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] == -1 && ![::ripecheck::isInTopResolve $channel $htopdom])} {
                 set country [::ripecheck::getCountry $htopdom]
                 set template [list %nick% $nick \
                                    %domain% $htopdom \
@@ -307,7 +307,7 @@ namespace eval ::ripecheck {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Checking if host match the top resolve list..."
 
             set htopdom [lindex [split $iphost "."] end]
-            if {[lsearch -exact $::ripecheck::topresolv($channel) "*"] != -1 || [lsearch -exact $::ripecheck::topresolv($channel) $htopdom] != -1} {
+            if {[::ripecheck::isInTopResolve $channel $htopdom]} {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched top resolve domain '$htopdom' for host '$iphost'"
                 dnslookup $iphost ::ripecheck::whoisFindServer $nick $channel $host ripecheck
             }
@@ -375,8 +375,9 @@ namespace eval ::ripecheck {
             if {[channel get $channel ripecheck.topban] && ![regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
                 set htopdom [lindex [split $ip "."] end]
                 if {(![channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] != -1) || \
-                    ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] == -1)} {
+                    ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $htopdom] == -1 && ![::ripecheck::isInTopResolve $channel $htopdom])} {
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Topban matched '$htopdom' for host '$ip', host would get banned!"
+
                     return 1
                 }
             }
@@ -731,7 +732,7 @@ namespace eval ::ripecheck {
                     putdcc $idx "    \002Allowed domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
                 } else {
                     putdcc $idx "    Whitelist mode: Off"
-                    putdcc $idx "    \002$Banned domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
+                    putdcc $idx "    \002Banned domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
                 }
                 if {[info exists ::ripecheck::topresolv($channel)]} {
                     putdcc $idx "    \002Resolve domains:\002 [join $::ripecheck::topresolv($channel) ", "]"
@@ -914,6 +915,13 @@ namespace eval ::ripecheck {
 
     proc isConfigEnabled { option } {
         if {[info exists ::ripecheck::config($option)] && [string is boolean $::ripecheck::config($option)] && [string is true $::ripecheck::config($option)]} {
+            return true
+        }
+        return false
+    }
+
+    proc isInTopResolve { channel htopdom } {
+        if {[lsearch -exact $::ripecheck::topresolv($channel) "*"] != -1 || [lsearch -exact $::ripecheck::topresolv($channel) $htopdom] != -1} {
             return true
         }
         return false
