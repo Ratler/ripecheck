@@ -424,13 +424,16 @@ namespace eval ::ripecheck {
     }
 
     proc status { channel } {
-        puthelp "PRIVMSG $channel :Ripecheck v$::ripecheck::version -- Status $channel"
+        set topresolve [join $::ripecheck::topresolv($channel) ", "]
+        set tlds [join $::ripecheck::chanarr($channel) ", "]
+
+        putquick "PRIVMSG $channel :Ripecheck v$::ripecheck::version -- Status $channel"
         if {[channel get $channel ripecheck.whitelist]} {
-            puthelp "PRIVMSG $channel : Allowed top domains: [llength $::ripecheck::chanarr($channel)]"
+            putquick "PRIVMSG $channel : Allowed TLD(s): $tlds | Resolve TLD(s): $topresolve"
         } else {
-            puthelp "PRIVMSG $channel : Banned top domains: [llength $::ripecheck::chanarr($channel)]"
+            putquick "PRIVMSG $channel : Banned TLDs(s): $tlds | Resolve TLD(s): $topresolve"
         }
-        puthelp "PRIVMSG $channel : Total bans set: [::ripecheck::getBanCount $channel]"
+        putquick "PRIVMSG $channel : Bans set by ripecheck: [::ripecheck::getBanCount $channel]"
     }
 
     proc pubParseIp { nick host handle channel ip rtype } {
