@@ -22,9 +22,8 @@
 # Load the script and change the topdomains you
 # wish to ban.
 #
-# You can test ip addresses from dcc console
-# against your current settings by enabling debug output
-# (.console +d) and running .testripecheck <channel> <host>
+# testripecheck <channel> <host>
+# Test host or ip from dcc console with your current settings 
 #
 # chanset <channel> <+/->ripecheck
 # This will either enable (+) or disable (-) the script for the
@@ -391,7 +390,7 @@ namespace eval ::ripecheck {
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched top resolve domain '$htopdom' for host '$ip' on '$channel'"
                     dnslookup $ip ::ripecheck::whoisFindServer $nick $channel "" testRipeCheck
                 } else {
-                    putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Host '$ip' did not match one of the top resolve domains"
+                    putidx $idx "ripecheck: TEST - Host '$ip' did not match one of the top resolve domains, would not get banned."
                 }
             }
         } else {
@@ -414,12 +413,16 @@ namespace eval ::ripecheck {
         putquick "PRIVMSG $target :Description: $descr"
     }
 
-    proc testripecheck { ip host channel ripe } {
-        if {(![channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1) || \
-            ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] == -1)} {
-            putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Testripecheck matched country '$ripe' for host '$host ($ip)' on channel '$channel', host would get banned!"
-        } else {
-            putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Testripecheck host '$host ($ip)' would _not_ get banned!"
+    proc testripecheck { nick ip host channel ripe } {
+        # Get idx from nick (handle)
+        set idx [hand2idx $nick]
+        if {$idx != -1} {
+            if {(![channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1) || \
+                ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] == -1)} {
+                putidx $idx "ripecheck: TEST - Testripecheck matched country '$ripe' for host '$host ($ip)' on channel '$channel', host would get banned!"
+            } else {
+                putidx $idx "ripecheck: TEST - Testripecheck host '$host ($ip)' would _not_ get banned!"
+            }
         }
     }
 
@@ -616,7 +619,7 @@ namespace eval ::ripecheck {
                         ::ripecheck::ripecheck $ip $host $nick $channel $orghost $whoisdata(country)
                     }
                     testRipeCheck {
-                        ::ripecheck::testripecheck $ip $host $channel $whoisdata(country)
+                        ::ripecheck::testripecheck $nick $ip $host $channel $whoisdata(country)
                     }
                     pubRipeCheck {
                         ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country\[[string toupper $whoisdata(country)]\]"
