@@ -12,8 +12,15 @@
 # * Support extra resolving for domains like info, com, net, org
 #   to find hosts that actually have an ip from a country
 #   you wish to ban.
-# * Custom ban messages
-# * Builtin help pages, see .help ripecheck
+# * Customizable ban messages with simple keyword support, see .help ripeconfig
+# * Builtin help pages, see .help ripecheck or .help
+# * !ripeinfo <host> to get verbose information from whois about the <host>
+# * !ripeinfo and !ripecheck are available as public commands and through private
+#   /msg to the bot (if enabled)
+# * Ban counter, number of times ripecheck have banned someone in the channel
+# * !ripestatus show settings and bancount stats for the channel
+# * Whitelist mode. Only let hosts from a country specified by the TLD list
+#   enter the channel, everyone else get banned.
 ###
 # Require / Depends:
 # tcllib >= 1.8  (http://www.tcl.tk/software/tcllib/)
