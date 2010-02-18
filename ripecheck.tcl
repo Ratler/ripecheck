@@ -434,8 +434,17 @@ namespace eval ::ripecheck {
     }
 
     proc status { channel } {
-        set topresolve [join $::ripecheck::topresolv($channel) ", "]
-        set tlds [join $::ripecheck::chanarr($channel) ", "]
+        if {[info exists ::ripecheck::topresolv($channel)]} {
+            set topresolve [join $::ripecheck::topresolv($channel) ", "]
+        } else {
+            set topresolve "No TLD set"
+        }
+
+        if {[info exists ::ripecheck::chanarr($channel)]} {
+            set tlds [join $::ripecheck::chanarr($channel) ", "]
+        } else {
+            set tlds "No TLD set"
+        }
 
         putquick "PRIVMSG $channel :Ripecheck v$::ripecheck::version -- Status $channel"
         if {[channel get $channel ripecheck.whitelist]} {
