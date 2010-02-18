@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.2  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.2.1-dev  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -30,7 +30,7 @@
 # wish to ban.
 #
 # testripecheck <channel> <host>
-# Test host or ip from dcc console with your current settings 
+# Test host or ip from dcc console with your current settings
 #
 # chanset <channel> <+/->ripecheck
 # This will either enable (+) or disable (-) the script for the
@@ -191,7 +191,7 @@ bind pub -|- !ripestatus ::ripecheck::pubRipeStatus
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.2"
+    variable version "3.2.1-dev"
 
     variable maskarray
     variable chanarr
