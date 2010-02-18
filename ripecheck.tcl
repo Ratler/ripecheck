@@ -428,7 +428,7 @@ namespace eval ::ripecheck {
                 ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] == -1)} {
                 putidx $idx "ripecheck: TEST - Testripecheck matched country '$ripe' for host '$host ($ip)' on channel '$channel', host would get banned!"
             } else {
-                putidx $idx "ripecheck: TEST - Testripecheck host '$host ($ip)' would _not_ get banned!"
+                putidx $idx "ripecheck: TEST - Testripecheck host '$host ($ip)' would not get banned!"
             }
         }
     }
@@ -629,10 +629,10 @@ namespace eval ::ripecheck {
                         ::ripecheck::testripecheck $nick $ip $host $channel $whoisdata(country)
                     }
                     pubRipeCheck {
-                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country\[[string toupper $whoisdata(country)]\]"
+                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country \[[string toupper $whoisdata(country)]\]"
                     }
                     msgRipeCheck {
-                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country\[[string toupper $whoisdata(country)]\]"
+                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country \[[string toupper $whoisdata(country)]\]"
                     }
                     pubRipeInfo {
                         ::ripecheck::ripeInfo $channel $whoisdata(inetnum) $whoisdata(netname) $whoisdata(mntby) $whoisdata(country) $whoisdata(descr)
