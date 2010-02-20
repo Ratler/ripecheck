@@ -534,7 +534,7 @@ namespace eval ::ripecheck {
 
     proc whoisConnect { ip host nick channel orghost whoisdb whoisport rtype } {
         # Setup timeout
-        after $::ripecheck::rtimeout * 1000 set ::ripecheck::constate "timeout"
+        after [expr {int($::ripecheck::rtimeout * 1000)}] set ::ripecheck::constate "timeout"
 
         if {[catch {socket -async $whoisdb $whoisport} sock]} {
             ::ripecheck::notifySender $nick $channel $rtype "ERROR: Failed to connect to '$whoisdb'!"
