@@ -78,26 +78,26 @@
 # ripesettings
 # List current channel settings
 #
-# ripeconfig <option> [value]"
-#  Options:"
-#   banreason [string]    : Set custom ban reason, support substitutional keywords, see below"
-#   bantopreason [string] : Set custom TLD ban reason, support substitutional keywords, see below"
-#   msgcmds [on|off]      : Enable or Disable commands through private message"
+# ripeconfig <option> [value]
+#  Options:
+#   banreason [string]    : Set custom ban reason, support substitutional keywords, see below
+#   bantopreason [string] : Set custom TLD ban reason, support substitutional keywords, see below
+#   msgcmds [on|off]      : Enable or Disable commands through private message
 #   fallback [on|off]     : EXPERIMENTAL!!! Use with caution!
 #                           This function will _try_ to detect country for an host where the whois server
 #                           only return a few NET-XXX-XXX-XXX-XXX entries.
 #                           The intention is to replace lastResortMask.
 #  Examples:
-#   TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
-#   Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
-#   Enable msgcmds: .ripeconfig msgcmds on"
-#   Disable msgcmds: .ripeconfig msgcmds off"
-#  Substitutional keywords, current keywords are:"
-#   %tld% = Top level domain, ie .us, .se, .no"
-#   %country% = Country name"
-#   %nick% = Nickname of the user being banned"
-#  *NOTE*:"
-#   To completely remove an option from the configuration leave \[value\] blank, ie .ripeconfig msgcmds"
+#   TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here
+#   Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here
+#   Enable msgcmds: .ripeconfig msgcmds on
+#   Disable msgcmds: .ripeconfig msgcmds off
+#  Substitutional keywords, current keywords are:
+#   %tld% = Top level domain, ie .us, .se, .no
+#   %country% = Country name
+#   %nick% = Nickname of the user being banned
+#  *NOTE*:
+#   To completely remove an option from the configuration leave \[value\] blank, ie .ripeconfig msgcmds
 #
 # help ripecheck
 # View ripecheck command help page through dcc console
