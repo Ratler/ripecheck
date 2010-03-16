@@ -274,6 +274,7 @@ namespace eval ::ripecheck {
 
         # Get IP/Host part
         regexp ".+@(.+)" $host matches iphost
+        set iphost [string tolower $iphost]
 
         # Top domain ban if enabled
         if {[channel get $channel ripecheck.topban] && ![regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
