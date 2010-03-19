@@ -105,7 +105,7 @@
 # Public channel commands:
 # !ripecheck <host>
 # !ripeinfo <host>
-# !ripestatus
+# !ripestatus <*|#channel>
 #
 # Private msg commands:
 # !ripecheck <host>
@@ -434,7 +434,7 @@ namespace eval ::ripecheck {
         }
     }
 
-    proc status { channel } {
+    proc status { outchannel channel} {
         if {[info exists ::ripecheck::topresolv($channel)]} {
             set topresolve [join $::ripecheck::topresolv($channel) ", "]
         } else {
@@ -447,13 +447,12 @@ namespace eval ::ripecheck {
             set tlds "No TLD set"
         }
 
-        putquick "PRIVMSG $channel :Ripecheck v$::ripecheck::version -- Status $channel"
+        putquick "PRIVMSG $outchannel :Status $channel -- Bans set by ripecheck: [::ripecheck::getBanCount $channel]"
         if {[channel get $channel ripecheck.whitelist]} {
-            putquick "PRIVMSG $channel : Allowed TLD(s): $tlds | Resolve TLD(s): $topresolve"
+            putquick "PRIVMSG $outchannel : Allowed TLD(s): $tlds | Resolve TLD(s): $topresolve"
         } else {
-            putquick "PRIVMSG $channel : Banned TLDs(s): $tlds | Resolve TLD(s): $topresolve"
+            putquick "PRIVMSG $outchannel : Banned TLDs(s): $tlds | Resolve TLD(s): $topresolve"
         }
-        putquick "PRIVMSG $channel : Bans set by ripecheck: [::ripecheck::getBanCount $channel]"
     }
 
     proc pubParseIp { nick host handle channel ip rtype } {
@@ -497,10 +496,24 @@ namespace eval ::ripecheck {
         return 0
     }
 
-    proc pubRipeStatus { nick host handle channel ip } {
+    proc pubRipeStatus { nick host handle channel arg } {
         set channel [string tolower $channel]
         if {![channel get $channel ripecheck.pubcmd]} { return 0 }
-        ::ripecheck::status $channel
+
+        # Grab only first arg and ignore the rest
+        set arg [string tolower [lindex [split $arg] 0]]
+
+        if {$arg == "*"} {
+            foreach chan [channels] {
+                if {[channel get $chan ripecheck]} {
+                    ::ripecheck::status $channel $chan
+                }
+            }
+        } elseif {$arg != "" && [channel get $arg ripecheck]} {
+            ::ripecheck::status $channel $arg
+        } else {
+            ::ripecheck::status $channel $channel
+        }
     }
 
     # Lookup which whois server to query and call whois_connect
