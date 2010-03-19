@@ -292,7 +292,7 @@ namespace eval ::ripecheck {
                 } else {
                     set banreason "RIPE Country Check: Top domain .$htopdom is banned."
                 }
-                putlog "ripecheck: Matched top domain '$htopdom' banning *!*@*.$htopdom for $bantime minute(s)"
+                putlog "ripecheck: Matched top domain '$htopdom' banning *!*@*.$htopdom on $channel for $bantime minute(s)"
                 ::ripecheck::incrBanCount $channel
                 newchanban $channel "*!*@*.$htopdom" ripecheck $banreason $bantime
 
@@ -346,7 +346,7 @@ namespace eval ::ripecheck {
             } else {
                 set banreason "RIPE Country Check: Matched $country \[$ripe\]"
             }
-            putlog "ripecheck: Matched country $country \[$ripe\] banning $nick!$orghost for $bantime minute(s)"
+            putlog "ripecheck: Matched country $country \[$ripe\] banning $nick!$orghost on $channel for $bantime minute(s)"
             ::ripecheck::incrBanCount $channel
             newchanban $channel "*!*@$host" ripecheck $banreason $bantime
         }
