@@ -752,16 +752,18 @@ namespace eval ::ripecheck {
         putdcc $idx "### \002Settings\002 - Ripecheck v$::ripecheck::version by Ratler ###"
         if {[array size ::ripecheck::chanarr] > 0} {
             foreach channel [array names ::ripecheck::chanarr] {
-                putdcc $idx "### \002Channel:\002 $channel"
-                if {[channel get $channel ripecheck.whitelist]} {
-                    putdcc $idx "    Whitelist mode: On"
-                    putdcc $idx "    \002Allowed domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
-                } else {
-                    putdcc $idx "    Whitelist mode: Off"
-                    putdcc $idx "    \002Banned domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
-                }
-                if {[info exists ::ripecheck::topresolv($channel)]} {
-                    putdcc $idx "    \002Resolve domains:\002 [join $::ripecheck::topresolv($channel) ", "]"
+                if {[validchan $channel]} {
+                    putdcc $idx "### \002Channel:\002 $channel"
+                    if {[channel get $channel ripecheck.whitelist]} {
+                        putdcc $idx "    Whitelist mode: On"
+                        putdcc $idx "    \002Allowed domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
+                    } else {
+                        putdcc $idx "    Whitelist mode: Off"
+                        putdcc $idx "    \002Banned domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
+                    }
+                    if {[info exists ::ripecheck::topresolv($channel)]} {
+                        putdcc $idx "    \002Resolve domains:\002 [join $::ripecheck::topresolv($channel) ", "]"
+                    }
                 }
             }
         } else {
