@@ -368,6 +368,16 @@ namespace eval ::ripecheck {
         return $::ripecheck::bancount($channel)
     }
 
+    # Return length of the longest string
+    proc getLongLength { str1 str2 } {
+        set strlen1 [string length $str1]
+        set strlen2 [string length $str2]
+        if {$strlen2 <= $strlen1} {
+            return $strlen1
+        }
+        return $strlen2
+    }
+
     proc test { nick idx arg } {
         if {[llength [split $arg]] != 2} {
             ::ripecheck::help $nick $idx testripecheck; return 0
@@ -414,16 +424,23 @@ namespace eval ::ripecheck {
         } else {
             set countrystring "$countryname \[[string toupper $country]\]"
         }
-        set msgheader [format " %-*s | %-*s | %-*s | %-*s | %-*s" [string length $inetnum] "INETNUM" \
-                                                                  [string length $netname] "NETNAME" \
-                                                                  [string length $mntby] "MNT-BY" \
-                                                                  [string length $countrystring] "COUNTRY" \
-                                                                  [string length $descr] "DESCRIPTION"]
-        set msg [format " %-*s | %-*s | %-*s | %-*s | %-*s" [string length $inetnum] $inetnum \
-                                                            [string length $netname] $netname \
-                                                            [string length $mntby] $mntby \
-                                                            [string length $countrystring] $countrystring \
-                                                            [string length $descr] $descr]
+        # Get proper string lengths for [format]
+        set inetnumlen [getLongLength $inetnum "INETNUM"]
+        set netnamelen [getLongLength $netname "NETNAME"]
+        set mntbylen [getLongLength $mntby "MNT-BY"]
+        set countrylen [getLongLength $countrystring "COUNTRY"]
+        set descrlen [getLongLength $descr "DESCRIPTION"]
+
+        set msgheader [format " %-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen "INETNUM" \
+                                                                  $netnamelen "NETNAME" \
+                                                                  $mntbylen "MNT-BY" \
+                                                                  $countrylen "COUNTRY" \
+                                                                  $descrlen "DESCRIPTION"]
+        set msg [format " %-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen $inetnum \
+                                                            $netnamelen $netname \
+                                                            $mntbylen $mntby \
+                                                            $countrylen $countrystring \
+                                                            $descrlen $descr]
         putquick "PRIVMSG $target :$msgheader"
         putquick "PRIVMSG $target :$msg"
     }
