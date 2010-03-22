@@ -409,16 +409,23 @@ namespace eval ::ripecheck {
     proc ripeInfo { target inetnum netname mntby country descr } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripeInfo()"
         set countryname [::ripecheck::getCountry $country]
-
-        putquick "PRIVMSG $target :Inetnum: $inetnum"
-        putquick "PRIVMSG $target :Netname: $netname"
-        putquick "PRIVMSG $target :mnt-by: $mntby"
         if {$countryname == ""} {
-            putquick "PRIVMSG $target :Country: $country"
+            set countrystring $country
         } else {
-            putquick "PRIVMSG $target :Country: $countryname \[[string toupper $country]\]"
+            set countrystring "$countryname \[[string toupper $country]\]"
         }
-        putquick "PRIVMSG $target :Description: $descr"
+        set msgheader [format " %-*s | %-*s | %-*s | %-*s | %-*s" [string length $inetnum] "INETNUM" \
+                                                                  [string length $netname] "NETNAME" \
+                                                                  [string length $mntby] "MNT-BY" \
+                                                                  [string length $countrystring] "COUNTRY" \
+                                                                  [string length $descr] "DESCRIPTION"]
+        set msg [format " %-*s | %-*s | %-*s | %-*s | %-*s" [string length $inetnum] $inetnum \
+                                                            [string length $netname] $netname \
+                                                            [string length $mntby] $mntby \
+                                                            [string length $countrystring] $countrystring \
+                                                            [string length $descr] $descr]
+        putquick "PRIVMSG $target :$msgheader"
+        putquick "PRIVMSG $target :$msg"
     }
 
     proc testripecheck { nick ip host channel ripe } {
