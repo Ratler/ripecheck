@@ -431,12 +431,12 @@ namespace eval ::ripecheck {
         set countrylen [getLongLength $countrystring "COUNTRY"]
         set descrlen [getLongLength $descr "DESCRIPTION"]
 
-        set msgheader [format " %-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen "INETNUM" \
+        set msgheader [format "%-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen "INETNUM" \
                                                                   $netnamelen "NETNAME" \
                                                                   $mntbylen "MNT-BY" \
                                                                   $countrylen "COUNTRY" \
                                                                   $descrlen "DESCRIPTION"]
-        set msg [format " %-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen $inetnum \
+        set msg [format "%-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen $inetnum \
                                                             $netnamelen $netname \
                                                             $mntbylen $mntby \
                                                             $countrylen $countrystring \
