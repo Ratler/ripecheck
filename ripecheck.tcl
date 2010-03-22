@@ -103,8 +103,8 @@
 # View ripecheck command help page through dcc console
 #
 # Public channel commands:
-# !ripecheck <host>
-# !ripeinfo <host>
+# !ripecheck <nick|host>
+# !ripeinfo <nick|host>
 # !ripestatus <*|#channel>
 #
 # Private msg commands:
@@ -468,9 +468,10 @@ namespace eval ::ripecheck {
         }
     }
 
-    proc pubRipeCheck { nick host handle channel ip } {
+    proc pubRipeCheck { nick host handle channel arg } {
         set channel [string tolower $channel]
         if {![channel get $channel ripecheck.pubcmd]} { return 0 }
+        set ip [::ripecheck::nickOrHost $channel $arg]
         ::ripecheck::pubParseIp $nick $host $handle $channel $ip pubRipeCheck
     }
 
@@ -482,9 +483,10 @@ namespace eval ::ripecheck {
         return 0
     }
 
-    proc pubRipeInfo { nick host handle channel ip } {
+    proc pubRipeInfo { nick host handle channel arg } {
         set channel [string tolower $channel]
         if {![channel get $channel ripecheck.pubcmd]} { return 0 }
+        set ip [::ripecheck::nickOrHost $channel $arg]
         ::ripecheck::pubParseIp $nick $host $handle $channel $ip pubRipeInfo
     }
 
@@ -514,6 +516,23 @@ namespace eval ::ripecheck {
         } else {
             ::ripecheck::status $channel $channel
         }
+    }
+
+    proc nickOrHost { channel arg } {
+        set arg [lindex [split $arg] 0]
+
+        # Check if arg is a nick or return arg
+        if {[onchan $arg $channel]} {
+            # Extract host from nick
+            regexp ".+@(.+)" [getchanhost $arg $channel] -> host
+            set host [string tolower $host]
+            if {$host != ""} {
+                return $host
+            } else {
+                return $arg
+            }
+        }
+        return $arg
     }
 
     # Lookup which whois server to query and call whois_connect
