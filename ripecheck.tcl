@@ -602,6 +602,7 @@ namespace eval ::ripecheck {
         vwait ::ripecheck::constate
         if { $::ripecheck::constate == "timeout" } {
             ::ripecheck::notifySender $nick $channel $rtype "ERROR: Connection timeout using '$whoisdb'!"
+            close $sock
             putlog "ripecheck: ERROR: Connection timeout against $whoisdb"; return -1
         }
     }
