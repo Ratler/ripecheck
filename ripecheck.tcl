@@ -432,15 +432,15 @@ namespace eval ::ripecheck {
         set descrlen [getLongLength $descr "DESCRIPTION"]
 
         set msgheader [format "%-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen "INETNUM" \
-                                                                  $netnamelen "NETNAME" \
-                                                                  $mntbylen "MNT-BY" \
-                                                                  $countrylen "COUNTRY" \
-                                                                  $descrlen "DESCRIPTION"]
+                                                                 $netnamelen "NETNAME" \
+                                                                 $mntbylen "MNT-BY" \
+                                                                 $countrylen "COUNTRY" \
+                                                                 $descrlen "DESCRIPTION"]
         set msg [format "%-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen $inetnum \
-                                                            $netnamelen $netname \
-                                                            $mntbylen $mntby \
-                                                            $countrylen $countrystring \
-                                                            $descrlen $descr]
+                                                           $netnamelen $netname \
+                                                           $mntbylen $mntby \
+                                                           $countrylen $countrystring \
+                                                           $descrlen $descr]
         putquick "PRIVMSG $target :$msgheader"
         putquick "PRIVMSG $target :$msg"
     }
@@ -552,8 +552,6 @@ namespace eval ::ripecheck {
             set host [string tolower $host]
             if {$host != ""} {
                 return $host
-            } else {
-                return $arg
             }
         }
         return $arg
