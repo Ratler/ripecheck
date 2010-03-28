@@ -496,7 +496,7 @@ namespace eval ::ripecheck {
 
         # Get lengths for format
         dict for {geoKey geoVal} $geoData {
-            set len($geoKey) [getLongLength $geoVal $geoKey]
+            set len($geoKey) [getLongLength [encoding convertfrom utf-8 $geoVal] $geoKey]
         }
 
         set googleUrl "http://maps.google.com/maps?q=[dict get $geoData Latitude],[dict get $geoData Longitude]&z=7"
