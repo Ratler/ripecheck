@@ -23,6 +23,7 @@
 #   enter the channel, everyone else get banned.
 ###
 # Require / Depends:
+# TCL >= 8.5
 # tcllib >= 1.8  (http://www.tcl.tk/software/tcllib/)
 ###
 # Usage:
@@ -172,6 +173,7 @@ setudef int ripecheck.bantime
 
 # Packages
 package require ip
+package require http
 
 # Bindings
 bind join - *!*@* ::ripecheck::onJoin
@@ -188,11 +190,14 @@ bind msg -|- !ripecheck ::ripecheck::msgRipeCheck
 bind pub -|- !ripeinfo ::ripecheck::pubRipeInfo
 bind msg -|- !ripeinfo ::ripecheck::msgRipeInfo
 bind pub -|- !ripestatus ::ripecheck::pubRipeStatus
+bind msg -|- !ripegeo ::ripecheck::msgRipeGeo
+bind pub -|- !ripegeo ::ripecheck::pubRipeGeo
 
 namespace eval ::ripecheck {
     # Global variables
     variable version "3.3-dev"
 
+    variable ipinfodb "http://ipinfodb.com/ip_query.php?ip="
     variable maskarray
     variable chanarr
     variable topresolv
@@ -323,9 +328,9 @@ namespace eval ::ripecheck {
 
     proc notifySender { nick channel rtype msg } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG: Entering notifySender()"
-        if {$rtype == "pubRipeCheck" || $rtype == "pubRipeInfo"} {
+        if {$rtype == "pubRipeCheck" || $rtype == "pubRipeInfo" || $rtype == "pubRipeGeo"} {
             puthelp "PRIVMSG $channel :$nick: \[ripecheck\] $msg"
-        } elseif {$rtype == "msgRipeInfo" || $rtype == "msgRipeCheck"} {
+        } elseif {$rtype == "msgRipeInfo" || $rtype == "msgRipeCheck" || $rtype == "msgRipeGeo"} {
             puthelp "PRIVMSG $nick :ripecheck: $msg"
         }
     }
@@ -376,6 +381,34 @@ namespace eval ::ripecheck {
             return $strlen1
         }
         return $strlen2
+    }
+
+    # Return ipinfodb data
+    proc getGeoData { ip } {
+        # TODO: Proper error control for the http connection
+        set http [::http::geturl $::ripecheck::ipinfodb$ip]
+        set httpData [::http::data $http]
+
+        ::http::cleanup $http
+
+        # TODO: Consider using tdom or other xml parser
+        regexp {(?i)<Status>([^<>]+)} $httpData -> geoData(Status)
+        dict set geoDict Status $geoData(Status)
+
+        # If status ok parse the rest
+        if {$geoData(Status) == "OK"} {
+            foreach tag [list "Ip" "CountryCode" "CountryName" "RegionCode" "RegionName" "City" "ZipPostalCode" "Latitude" "Longitude"] {
+                regexp "(?i)<$tag>(\[^<>\]+)" $httpData -> geoData($tag)
+
+                # Set blank if regexp fail to get value or if value is empty
+                if {![info exists geoData($tag)]} {
+                    set geoData($tag) ""
+                }
+                dict set geoDict $tag $geoData($tag)
+            }
+        }
+
+        return $geoDict
     }
 
     proc test { nick idx arg } {
@@ -445,6 +478,55 @@ namespace eval ::ripecheck {
         putquick "PRIVMSG $target :$msg"
     }
 
+    proc geoInfo { ip host status nick channel rtype } {
+        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering geoInfo()"
+
+        if {$status == 0} {
+            ::ripecheck::notifySender $nick $channel $rtype "Failed to resolve '$host'!"
+            putlog "ripecheck: Couldn't resolve '$host'. No further action taken."
+            return 0
+        }
+
+        set geoData [::ripecheck::getGeoData $ip]
+
+        if {[dict get $geoData Status] != "OK"} {
+            ::ripecheck::notifySender $nick $channel $rtype "ERROR: [dict get $geoData Status]"
+            return 0
+        }
+
+        # Get lengths for format
+        dict for {geoKey geoVal} $geoData {
+            set len($geoKey) [getLongLength $geoVal $geoKey]
+        }
+
+        set googleUrl "http://maps.google.com/maps?q=[dict get $geoData Latitude],[dict get $geoData Longitude]&z=7"
+        set msgheader [format "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s" \
+                           $len(Ip) "Ip" \
+                           $len(CountryName) "CountryName" \
+                           $len(RegionName) "RegionName" \
+                           $len(City) "City" \
+                           $len(Latitude) "Latitude" \
+                           $len(Longitude) "Longitude" \
+                           3 "Map"]
+        set msg [format "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s" \
+                     $len(Ip) [dict get $geoData Ip] \
+                     $len(CountryName) [dict get $geoData CountryName] \
+                     $len(RegionName) [dict get $geoData RegionName] \
+                     $len(City) [dict get $geoData City] \
+                     $len(Latitude) [dict get $geoData Latitude] \
+                     $len(Longitude) [dict get $geoData Longitude] \
+                     3 $googleUrl]
+
+        if {$rtype == "pubRipeGeo"} {
+            set target $channel
+        } else {
+            set target $nick
+        }
+
+        putquick "PRIVMSG $target :$msgheader"
+        putquick "PRIVMSG $target :$msg"
+    }
+
     proc testripecheck { nick ip host channel ripe } {
         # Get idx from nick (handle)
         set idx [hand2idx $nick]
@@ -481,14 +563,22 @@ namespace eval ::ripecheck {
 
     proc pubParseIp { nick host handle channel ip rtype } {
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
-            set iptype [::ip::type $ip]
-            if {$iptype != "normal"} {
-                ::ripecheck::notifySender $nick $channel $rtype "Sorry but '$ip' is from a '$iptype' range"
+            if {$rtype == "pubRipeGeo" || $rtype == "msgRipeGeo"} {
+                ::ripecheck::geoInfo $ip $ip "" $nick $channel $rtype
             } else {
-                ::ripecheck::whoisFindServer $ip $ip "" $nick $channel "" $rtype
+                set iptype [::ip::type $ip]
+                if {$iptype != "normal"} {
+                    ::ripecheck::notifySender $nick $channel $rtype "Sorry but '$ip' is from a '$iptype' range"
+                } else {
+                    ::ripecheck::whoisFindServer $ip $ip "" $nick $channel "" $rtype
+                }
             }
         } else {
-            dnslookup $ip ::ripecheck::whoisFindServer $nick $channel "" $rtype
+            if {$rtype == "pubRipeGeo" || $rtype == "msgRipeGeo"} {
+                dnslookup $ip ::ripecheck::geoInfo $nick $channel $rtype
+            } else {
+                dnslookup $ip ::ripecheck::whoisFindServer $nick $channel "" $rtype
+            }
         }
     }
 
@@ -518,6 +608,20 @@ namespace eval ::ripecheck {
         # Check if msgcmds is enabled
         if {[::ripecheck::isConfigEnabled msgcmds]} {
             ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeInfo
+        }
+        return 0
+    }
+
+    proc pubRipeGeo { nick host handle channel arg } {
+        set channel [string tolower $channel]
+        if {![channel get $channel ripecheck.pubcmd]} { return 0 }
+        set ip [::ripecheck::nickOrHost $channel $arg]
+        ::ripecheck::pubParseIp $nick $host $handle $channel $ip pubRipeGeo
+    }
+
+    proc msgRipeGeo { nick host handle ip } {
+        if {[::ripecheck::isConfigEnabled msgcmds]} {
+            ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeGeo
         }
         return 0
     }
