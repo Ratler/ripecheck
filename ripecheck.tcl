@@ -587,6 +587,15 @@ namespace eval ::ripecheck {
         }
     }
 
+    # Check if chan is valid and that the bot is in the channel
+    proc isBotOnChan { channel } {
+        global botnick
+        if {[validchan $channel] && [onchan $botnick $channel]} {
+            return 1
+        }
+        return 0
+    }
+
     proc pubParseIp { nick host handle channel ip rtype } {
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $ip]} {
             if {$rtype == "pubRipeGeo" || $rtype == "msgRipeGeo"} {
@@ -625,7 +634,21 @@ namespace eval ::ripecheck {
     proc pubRipeInfo { nick host handle channel arg } {
         set channel [string tolower $channel]
         if {![channel get $channel ripecheck.pubcmd]} { return 0 }
-        set ip [::ripecheck::nickOrHost $channel $arg]
+        foreach { arg1 arg2 } $arg {break}
+        # is it a channel?
+        if {[regexp {^#} $arg1] && $arg2 != ""} {
+            if {[::ripecheck::isBotOnChan $arg1]} {
+                set tchannel $arg1
+                set targ $arg2
+            } else {
+                ::ripecheck::notifySender $nick $channel pubRipeGeo "Invalid channel '$arg1'!"
+                return 0
+            }
+        } else {
+            set tchannel $channel
+            set targ $arg1
+        }
+        set ip [::ripecheck::nickOrHost $tchannel $targ]
         ::ripecheck::pubParseIp $nick $host $handle $channel $ip pubRipeInfo
     }
 
@@ -639,7 +662,21 @@ namespace eval ::ripecheck {
     proc pubRipeGeo { nick host handle channel arg } {
         set channel [string tolower $channel]
         if {![channel get $channel ripecheck.pubcmd]} { return 0 }
-        set ip [::ripecheck::nickOrHost $channel $arg]
+        foreach { arg1 arg2 } $arg {break}
+        # is it a channel?
+        if {[regexp {^#} $arg1] && $arg2 != ""} {
+            if {[::ripecheck::isBotOnChan $arg1]} {
+                set tchannel $arg1
+                set targ $arg2
+            } else {
+                ::ripecheck::notifySender $nick $channel pubRipeGeo "Invalid channel '$arg1'!"
+                return 0
+            }
+        } else {
+            set tchannel $channel
+            set targ $arg1
+        }
+        set ip [::ripecheck::nickOrHost $tchannel $targ]
         ::ripecheck::pubParseIp $nick $host $handle $channel $ip pubRipeGeo
     }
 
