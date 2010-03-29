@@ -376,13 +376,14 @@ namespace eval ::ripecheck {
     }
 
     # Return length of the longest string
-    proc getLongLength { str1 str2 } {
-        set strlen1 [string length $str1]
-        set strlen2 [string length $str2]
-        if {$strlen2 <= $strlen1} {
-            return $strlen1
+    proc getLongLength { listOfStrings } {
+        set len 0
+        foreach str $listOfStrings {
+            if {$len < [string length $str]} {
+                set len [string length $str]
+            }
         }
-        return $strlen2
+        return $len
     }
 
     # Return http data
@@ -483,11 +484,11 @@ namespace eval ::ripecheck {
             set countrystring "$countryname \[[string toupper $country]\]"
         }
         # Get proper string lengths for [format]
-        set inetnumlen [getLongLength $inetnum "INETNUM"]
-        set netnamelen [getLongLength $netname "NETNAME"]
-        set mntbylen [getLongLength $mntby "MNT-BY"]
-        set countrylen [getLongLength $countrystring "COUNTRY"]
-        set descrlen [getLongLength $descr "DESCRIPTION"]
+        set inetnumlen [getLongLength [list $inetnum "INETNUM"]]
+        set netnamelen [getLongLength [list $netname "NETNAME"]]
+        set mntbylen [getLongLength [list $mntby "MNT-BY"]]
+        set countrylen [getLongLength [list $countrystring "COUNTRY"]]
+        set descrlen [getLongLength [list $descr "DESCRIPTION"]]
 
         set msgheader [format "%-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen "INETNUM" \
                                                                  $netnamelen "NETNAME" \
@@ -521,7 +522,7 @@ namespace eval ::ripecheck {
 
         # Get lengths for format
         dict for {geoKey geoVal} $geoData {
-            set len($geoKey) [getLongLength [encoding convertfrom utf-8 $geoVal] $geoKey]
+            set len($geoKey) [getLongLength [list [encoding convertfrom utf-8 $geoVal] $geoKey]]
         }
 
         set googleUrl "http://maps.google.com/maps?q=[dict get $geoData Latitude],[dict get $geoData Longitude]&z=7"
