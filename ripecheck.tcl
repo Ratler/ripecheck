@@ -385,22 +385,45 @@ namespace eval ::ripecheck {
         return $strlen2
     }
 
-    # Return ipinfodb data
-    proc getGeoData { ip } {
-        # TODO: Proper error control for the http connection
-        set http [::http::geturl $::ripecheck::ipinfodb$ip]
-        set httpData [::http::data $http]
+    # Return http data
+    proc getHttpData { url } {
+        if {[catch {set http [::http::geturl $url -timeout [expr {int($::ripecheck::rtimeout * 1000)}]]} error]} {
+            return [dict set httpData status $error]
+        }
 
+        if {[::http::status $http] == "eof"} {
+            ::http::cleanup $http
+            return [dict set httpData status "Server closed the connection without replying!"]
+        }
+
+        if {[::http::status $http] == "error"} {
+            set httpErr [::http::error $http]
+            ::http::cleanup $http
+            return [dict set httpData status $httpErr]
+        }
+
+        dict set httpData data [::http::data $http]
+        dict set httpData status [::http::status $http]
         ::http::cleanup $http
 
+        return $httpData
+    }
+
+    # Return ipinfodb data
+    proc getGeoData { ip } {
+        set httpData [::ripecheck::getHttpData $::ripecheck::ipinfodb$ip]
+        if {[dict get $httpData status] != "ok"} {
+            return [dict set status Status [dict get $httpData status]]
+        }
+
         # TODO: Consider using tdom or other xml parser
-        regexp {(?i)<Status>([^<>]+)} $httpData -> geoData(Status)
+        regexp {(?i)<Status>([^<>]+)} [dict get $httpData data] -> geoData(Status)
         dict set geoDict Status $geoData(Status)
 
         # If status ok parse the rest
         if {$geoData(Status) == "OK"} {
             foreach tag [list "Ip" "CountryCode" "CountryName" "RegionCode" "RegionName" "City" "ZipPostalCode" "Latitude" "Longitude"] {
-                regexp "(?i)<$tag>(\[^<>\]+)" $httpData -> geoData($tag)
+                regexp "(?i)<$tag>(\[^<>\]+)" [dict get $httpData data] -> geoData($tag)
 
                 # Set blank if regexp fail to get value or if value is empty
                 if {![info exists geoData($tag)]} {
