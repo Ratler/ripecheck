@@ -14,11 +14,11 @@
 #   you wish to ban.
 # * Customizable ban messages with simple keyword support, see .help ripeconfig
 # * Builtin help pages, see .help ripecheck or .help
-# * !ripeinfo <host> to get verbose information from whois about the <host>
+# * !ripeinfo <nick|host> to get verbose information from whois about the host
 # * !ripeinfo and !ripecheck are available as public commands and through private
 #   /msg to the bot (if enabled)
 # * Ban counter, number of times ripecheck have banned someone in the channel
-# * !ripestatus show settings and bancount stats for the channel
+# * !ripestatus [*|#channel] show settings and bancount stats for the channel
 # * Whitelist mode. Only let hosts from a country specified by the TLD list
 #   enter the channel, everyone else get banned.
 ###
@@ -106,11 +106,13 @@
 # Public channel commands:
 # !ripecheck <nick|host>
 # !ripeinfo <nick|host>
-# !ripestatus <*|#channel>
+# !ripegeo <nick|host>
+# !ripestatus [*|#channel]
 #
 # Private msg commands:
 # !ripecheck <host>
 # !ripeinfo <host>
+# !ripegeo <host>
 ###
 # Tested:
 # eggdrop v1.6.19 GNU/Linux with tcl 8.5 and tcllib 1.10
@@ -501,7 +503,7 @@ namespace eval ::ripecheck {
 
         set googleUrl "http://maps.google.com/maps?q=[dict get $geoData Latitude],[dict get $geoData Longitude]&z=7"
         set msgheader [format "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s" \
-                           $len(Ip) "Ip" \
+                           $len(Ip) "IP" \
                            $len(CountryName) "CountryName" \
                            $len(RegionName) "RegionName" \
                            $len(City) "City" \
@@ -594,7 +596,6 @@ namespace eval ::ripecheck {
         if {[::ripecheck::isConfigEnabled msgcmds]} {
             ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeCheck
         }
-        return 0
     }
 
     proc pubRipeInfo { nick host handle channel arg } {
@@ -609,7 +610,6 @@ namespace eval ::ripecheck {
         if {[::ripecheck::isConfigEnabled msgcmds]} {
             ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeInfo
         }
-        return 0
     }
 
     proc pubRipeGeo { nick host handle channel arg } {
@@ -623,7 +623,6 @@ namespace eval ::ripecheck {
         if {[::ripecheck::isConfigEnabled msgcmds]} {
             ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeGeo
         }
-        return 0
     }
 
     proc pubRipeStatus { nick host handle channel arg } {
