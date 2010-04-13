@@ -1,5 +1,6 @@
 1.0.0.0/8 whois.apnic.net
 2.0.0.0/8  whois.ripe.net
+14.0.0.0/8 whois.apnic.net     
 24.132.0.0/14	whois.ripe.net
 27.0.0.0/8 whois.apnic.net
 41.0.0.0/8	whois.afrinic.net
@@ -12,29 +13,31 @@
 61.80.0.0/14	whois.nic.or.kr
 61.84.0.0/15	whois.nic.or.kr
 61.112.0.0/12	whois.nic.ad.jp
-61.192.0.0/12	whois.nic.ad.jp		# => 61.207.255.255
-61.208.0.0/13	whois.nic.ad.jp		# => 61.215.255.255
+61.192.0.0/12	whois.nic.ad.jp
+61.208.0.0/13	whois.nic.ad.jp
 60.0.0.0/7	whois.apnic.net
 62.0.0.0/8	whois.ripe.net
 77.0.0.0/8	whois.ripe.net
 78.0.0.0/7	whois.ripe.net
-80.0.0.0/4      whois.ripe.net          # => 95.255.255.25
+80.0.0.0/4      whois.ripe.net
 96.0.0.0/6	whois.arin.net
+107.0.0.0/8 whois.arin.net
 108.0.0.0/8 whois.arin.net
 109.0.0.0/8 whois.ripe.net
 110.0.0.0/7 whois.apnic.net
 96.0.0.0/4 UNALLOCATED
-118.32.0.0/11 whois.nic.or.kr
-119.192.0.0/11 whois.nic.or.kr
+112.160.0.0/11 whois.nic.or.kr
 115.0.0.0/12 whois.nic.or.kr
 115.16.0.0/13 whois.nic.or.kr
+118.32.0.0/11 whois.nic.or.kr
+119.192.0.0/11 whois.nic.or.kr
 112.0.0.0/5 whois.apnic.net
 121.128.0.0/10	whois.nic.or.kr
 125.128.0.0/11	whois.nic.or.kr
 120.0.0.0/6	whois.apnic.net
 124.0.0.0/7	whois.apnic.net
 126.0.0.0/8	whois.apnic.net
-0.0.0.0/1	whois.arin.net	# all other A classes are managed by ARIN
+0.0.0.0/1	whois.arin.net
 133.0.0.0/8	whois.nic.ad.jp
 139.20.0.0/14	whois.ripe.net
 139.24.0.0/14	whois.ripe.net
@@ -88,18 +91,20 @@
 169.208.0.0/12	whois.apnic.net
 171.16.0.0/12	whois.ripe.net
 171.32.0.0/15	whois.ripe.net
+175.192.0.0/10 whois.nic.or.kr
 175.0.0.0/8     whois.apnic.net
 178.0.0.0/8     whois.ripe.net
 180.0.0.0/8     whois.apnic.net
+183.96.0.0/11 whois.nic.or.kr
 182.0.0.0/7     whois.apnic.net
 186.0.0.0/7     whois.lacnic.net
-188.0.0.0/8	whois.ripe.net # transferred from ARIN to to RIPE
+188.0.0.0/8	whois.ripe.net
 189.0.0.0/8	whois.lacnic.net
 190.0.0.0/7	whois.lacnic.net
 128.0.0.0/2	whois.arin.net
 192.71.0.0/16	whois.ripe.net
 192.72.253.0/24	whois.arin.net
-192.72.254.0/24	whois.arin.net	# how annoying...
+192.72.254.0/24	whois.arin.net
 192.72.0.0/16	whois.apnic.net
 192.106.0.0/16	whois.ripe.net
 192.114.0.0/15	whois.ripe.net
@@ -107,7 +112,7 @@
 192.118.0.0/16	whois.ripe.net
 192.162.0.0/16	whois.ripe.net
 192.164.0.0/14	whois.ripe.net
-192.0.0.0/8	whois.arin.net	# the swamp
+192.0.0.0/8	whois.arin.net
 193.0.0.0/8	whois.ripe.net
 194.0.0.0/7	whois.ripe.net
 196.0.0.0/7	whois.afrinic.net
@@ -131,7 +136,7 @@
 202.48.0.0/16	whois.nic.ad.jp
 202.39.128.0/17	whois.twnic.net
 202.208.0.0/12	whois.nic.ad.jp
-202.224.0.0/11	whois.nic.ad.jp # => 202.255.255.255
+202.224.0.0/11	whois.nic.ad.jp
 203.0.0.0/10	whois.apnic.net
 203.66.0.0/16	whois.twnic.net
 203.69.0.0/16	whois.twnic.net
@@ -140,9 +145,9 @@
 203.140.0.0/15	whois.nic.ad.jp
 203.178.0.0/15	whois.nic.ad.jp
 203.180.0.0/14	whois.nic.ad.jp
-203.224.0.0/11	whois.nic.or.kr # => 203.255.255.255
+203.224.0.0/11	whois.nic.or.kr
 202.0.0.0/7	whois.apnic.net
-204.0.0.0/14	whois.verio.net		# rwhois too
+204.0.0.0/14	whois.verio.net
 204.0.0.0/6	whois.arin.net
 208.0.0.0/7	whois.arin.net
 209.94.192.0/19	whois.lacnic.net
@@ -153,7 +158,7 @@
 210.71.128.0/16	whois.twnic.net
 210.90.0.0/15	whois.nic.or.kr
 210.92.0.0/14	whois.nic.or.kr
-210.96.0.0/11	whois.nic.or.kr # => 210.127.255.255
+210.96.0.0/11	whois.nic.or.kr
 210.128.0.0/11	whois.nic.ad.jp
 210.160.0.0/12	whois.nic.ad.jp
 210.178.0.0/15	whois.nic.or.kr
@@ -161,9 +166,8 @@
 210.188.0.0/14	whois.nic.ad.jp
 210.196.0.0/14	whois.nic.ad.jp
 210.204.0.0/14	whois.nic.or.kr
-210.216.0.0/13	whois.nic.or.kr	# => 210.223.255.255
-210.224.0.0/12	whois.nic.ad.jp	# => 210.239.255.255
-# some more TWNIC blocks are scattered here
+210.216.0.0/13	whois.nic.or.kr
+210.224.0.0/12	whois.nic.ad.jp
 210.240.0.0/16	whois.twnic.net
 210.241.0.0/15	whois.twnic.net
 210.241.224.0/19 whois.twnic.net
@@ -173,21 +177,21 @@
 211.16.0.0/14	whois.nic.ad.jp
 211.20.0.0/15	whois.twnic.net
 211.22.0.0/16	whois.twnic.net
-211.32.0.0/11	whois.nic.or.kr	# => 211.63.255.255
+211.32.0.0/11	whois.nic.or.kr
 211.75.0.0/16	whois.twnic.net
 211.72.0.0/16	whois.twnic.net
 211.104.0.0/13	whois.nic.or.kr
-211.112.0.0/13	whois.nic.or.kr	# => 211.119.255.255
+211.112.0.0/13	whois.nic.or.kr
 211.120.0.0/13	whois.nic.ad.jp
 211.128.0.0/13	whois.nic.ad.jp
 211.168.0.0/13	whois.nic.or.kr
 211.176.0.0/12	whois.nic.or.kr
-211.192.0.0/10  whois.nic.or.kr # => 211.255.255.255
+211.192.0.0/10  whois.nic.or.kr
 210.0.0.0/7	whois.apnic.net
 213.154.32.0/19	whois.afrinic.net
 213.154.64.0/19	whois.afrinic.net
 212.0.0.0/7	whois.ripe.net
-214.0.0.0/7	whois.arin.net	# DoD
+214.0.0.0/7	whois.arin.net
 216.0.0.0/8	whois.arin.net
 217.0.0.0/8	whois.ripe.net
 218.36.0.0/14	whois.nic.or.kr
@@ -215,5 +219,4 @@
 222.120.0.0/15	whois.nic.or.kr
 222.122.0.0/16	whois.nic.or.kr
 222.232.0.0/13	whois.nic.or.kr
-223.0.0.0/8	UNALLOCATED	# returned from APNIC to IANA
 220.0.0.0/6	whois.apnic.net
