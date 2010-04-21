@@ -430,6 +430,9 @@ namespace eval ::ripecheck {
                 if {![info exists geoData($tag)]} {
                     set geoData($tag) ""
                 }
+                if {$tag == "CountryName" && [info exists geoData(CountryCode)]} {
+                    set geoData($tag) "$geoData($tag) \[$geoData(CountryCode)\]"
+                }
                 dict set geoDict $tag $geoData($tag)
             }
         }
