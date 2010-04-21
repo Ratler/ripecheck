@@ -623,7 +623,7 @@ namespace eval ::ripecheck {
     proc pubRipeCheck { nick host handle channel arg } {
         set channel [string tolower $channel]
         if {![channel get $channel ripecheck.pubcmd]} { return 0 }
-        set ip [::ripecheck::nickOrHost $channel $arg]
+        set ip [::ripecheck::getNickOrHost $channel $arg]
         ::ripecheck::pubParseIp $nick $host $handle $channel $ip pubRipeCheck
     }
 
@@ -651,7 +651,7 @@ namespace eval ::ripecheck {
             set tchannel $channel
             set targ $arg1
         }
-        set ip [::ripecheck::nickOrHost $tchannel $targ]
+        set ip [::ripecheck::getNickOrHost $tchannel $targ]
         ::ripecheck::pubParseIp $nick $host $handle $channel $ip pubRipeInfo
     }
 
@@ -679,7 +679,7 @@ namespace eval ::ripecheck {
             set tchannel $channel
             set targ $arg1
         }
-        set ip [::ripecheck::nickOrHost $tchannel $targ]
+        set ip [::ripecheck::getNickOrHost $tchannel $targ]
         ::ripecheck::pubParseIp $nick $host $handle $channel $ip pubRipeGeo
     }
 
@@ -709,7 +709,7 @@ namespace eval ::ripecheck {
         }
     }
 
-    proc nickOrHost { channel arg } {
+    proc getNickOrHost { channel arg } {
         set arg [lindex [split $arg] 0]
 
         # Check if arg is a nick or return arg
