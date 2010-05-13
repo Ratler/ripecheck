@@ -24,7 +24,7 @@
 ###
 # Require / Depends:
 # TCL >= 8.5
-# tcllib >= 1.8  (http://www.tcl.tk/software/tcllib/)
+# tcllib >= 1.10  (http://www.tcl.tk/software/tcllib/)
 ###
 # Usage:
 # Load the script and change the topdomains you
@@ -478,31 +478,36 @@ namespace eval ::ripecheck {
         }
     }
 
-    proc ripeInfo { target inetnum netname mntby country descr } {
+    proc ripeInfo { target whoisData } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering ripeInfo()"
-        set countryname [::ripecheck::getCountry $country]
-        if {$countryname == ""} {
-            set countrystring $country
-        } else {
-            set countrystring "$countryname \[[string toupper $country]\]"
+        set countryname [::ripecheck::getCountry [dict get $whoisData Country]]
+        if {$countryname != ""} {
+            dict set whoisData Country "$countryname \[[string toupper [dict get $whoisData Country]]\]"
         }
-        # Get proper string lengths for [format]
-        set inetnumlen [getLongLength [list $inetnum "INETNUM"]]
-        set netnamelen [getLongLength [list $netname "NETNAME"]]
-        set mntbylen [getLongLength [list $mntby "MNT-BY"]]
-        set countrylen [getLongLength [list $countrystring "COUNTRY"]]
-        set descrlen [getLongLength [list $descr "DESCRIPTION"]]
 
-        set msgheader [format "%-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen "INETNUM" \
-                                                                 $netnamelen "NETNAME" \
-                                                                 $mntbylen "MNT-BY" \
-                                                                 $countrylen "COUNTRY" \
-                                                                 $descrlen "DESCRIPTION"]
-        set msg [format "%-*s | %-*s | %-*s | %-*s | %-*s" $inetnumlen $inetnum \
-                                                           $netnamelen $netname \
-                                                           $mntbylen $mntby \
-                                                           $countrylen $countrystring \
-                                                           $descrlen $descr]
+        # Get proper string lengths for [format]
+        dict for {key val} $whoisData {
+            set len($key) [getLongLength [list $val $key]]
+        }
+
+        set msgheader [format "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s" \
+                           $len(InetNum) "InetNum" \
+                           $len(Asn) "Asn" \
+                           $len(NetName) "NetName" \
+                           $len(MntBy) "MntBy" \
+                           $len(Country) "Country" \
+                           $len(AbuseMail) "AbuseMail" \
+                           $len(Description) "Description"]
+
+        set msg [format "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s" \
+                     $len(InetNum) [dict get $whoisData InetNum] \
+                     $len(Asn) [dict get $whoisData Asn] \
+                     $len(NetName) [dict get $whoisData NetName] \
+                     $len(MntBy) [dict get $whoisData MntBy] \
+                     $len(Country) [dict get $whoisData Country] \
+                     $len(AbuseMail) [dict get $whoisData AbuseMail] \
+                     $len(Description) [dict get $whoisData Description]]
+
         putquick "PRIVMSG $target :$msgheader"
         putquick "PRIVMSG $target :$msg"
     }
@@ -773,11 +778,13 @@ namespace eval ::ripecheck {
     }
 
     proc whoisCallback { ip host nick channel orghost sock whoisdb rtype } {
-        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering whois_callback..."
-        set whoisdata(inetnum) "No info"
-        set whoisdata(netname) "No info"
-        set whoisdata(mntby) "No info"
-        set whoisdata(descr) "No info"
+        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering whois_callback()"
+        dict set whoisData InetNum ""
+        dict set whoisData NetName ""
+        dict set whoisData MntBy ""
+        dict set whoisData Description ""
+        dict set whoisData Asn ""
+        dict set whoisData AbuseMail ""
 
         if {[string equal {} [fconfigure $sock -error]]} {
             puts $sock $ip
@@ -819,18 +826,22 @@ namespace eval ::ripecheck {
                         close $sock; return 0
                     }
                 } elseif {[regexp -line -nocase {country:\s*([a-z]{2,6})} $row -> data]} {
-                    set whoisdata(country) [string tolower $data]
-                    putloglev $::ripecheck::conflag * "ripecheck: DEBUG - $whoisdb answer: $whoisdata(country)"
+                    dict set whoisData Country [string tolower $data]
+                    putloglev $::ripecheck::conflag * "ripecheck: DEBUG - $whoisdb answer: [dict get $whoisData Country]"
                 } elseif {[regexp -line -nocase {netname:\s*(.*)} $row -> data]} {
-                    set whoisdata(netname) $data
+                    dict set whoisData NetName $data
                 } elseif {[regexp -line -nocase {descr:\s*(.*)} $row -> data] && ![info exists whoisdata(descr)]} {
-                    set whoisdata(descr) $data
+                    dict set whoisData Description $data
                 } elseif {[regexp -line -nocase {mnt-by:\s*(.*)} $row -> data]} {
-                    set whoisdata(mntby) $data
+                    dict set whoisData MntBy $data
                 } elseif {[regexp -line -nocase {inetnum:\s*(.*)} $row -> data]} {
-                    set whoisdata(inetnum) $data
+                    dict set whoisData InetNum $data
+                } elseif {[regexp -line -nocase {origin:\s*(.*)} $row -> data]} {
+                    dict set whoisData Asn $data
+                } elseif {[regexp -line -nocase {abuse-mailbox:\s*(.*)} $row -> data]} {
+                    dict set whoisData AbuseMail $data
                 } elseif {[regexp -line {.*\((NET-[0-9]{1,3}-[0-9]{1,3}-[0-9]{1,3}.*)\)} $row -> data]} {
-                    set whoisdata(fallback) $data
+                    dict set whoisData fallback $data
                 }
             }
 
@@ -838,48 +849,48 @@ namespace eval ::ripecheck {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - End of while-loop in whois_callback"
 
             # Experimental feature that might replace lastResortMasks in the future
-            if {[::ripecheck::isConfigEnabled fallback] && ![info exists whoisdata(country)] && [info exists whoisdata(fallback)]} {
-                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Using fallback method (EXPERIMENTAL) for '$whoisdata(fallback)' original host was $host ($ip)"
-                ::ripecheck::whoisConnect $whoisdata(fallback) $host $nick $channel $orghost $whoisdb 43 $rtype
+            if {[::ripecheck::isConfigEnabled fallback] && ![dict exists $whoisData Country] && [dict exists $whoisData fallback]} {
+                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Using fallback method (EXPERIMENTAL) for '[dict get $whoisData fallback]' original host was $host ($ip)"
+                ::ripecheck::whoisConnect [dict get $whoisData fallback] $host $nick $channel $orghost $whoisdb 43 $rtype
                 return 1
             }
 
             # Last resort, check if we get a match from hardcoded netmasks
-            if {![info exists whoisdata(country)] && [::ripecheck::lastResortMasks $ip] != ""} {
-                set whoisdata(country) [::ripecheck::lastResortMasks $ip]
-                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Got '$whoisdata(country)' from lastResortMasks"
+            if {![dict exists $whoisData Country] && [::ripecheck::lastResortMasks $ip] != ""} {
+                dict set whoisdata Country [::ripecheck::lastResortMasks $ip]
+                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Got '[dict get $whoisData Country]' from lastResortMasks"
             }
 
-            if {[info exists whoisdata(country)]} {
-                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Running mode: '$rtype' for country: $whoisdata(country)"
-                set country [::ripecheck::getCountry $whoisdata(country)]
+            if {[dict exists $whoisData Country]} {
+                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Running mode: '$rtype' for country: [dict get $whoisData Country]"
+                set country [::ripecheck::getCountry [dict get $whoisData Country]]
                 switch -- $rtype {
                     ripecheck {
-                        ::ripecheck::ripecheck $ip $host $nick $channel $orghost $whoisdata(country)
+                        ::ripecheck::ripecheck $ip $host $nick $channel $orghost [dict get $whoisData Country]
                     }
                     testRipeCheck {
-                        ::ripecheck::testripecheck $nick $ip $host $channel $whoisdata(country)
+                        ::ripecheck::testripecheck $nick $ip $host $channel [dict get $whoisData Country]
                     }
                     pubRipeCheck {
-                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country \[[string toupper $whoisdata(country)]\]"
+                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country \[[string toupper [dict get $whoisData Country]]\]"
                     }
                     msgRipeCheck {
-                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country \[[string toupper $whoisdata(country)]\]"
+                        ::ripecheck::notifySender $nick $channel $rtype "$host is located in $country \[[string toupper [dict get $whoisData Country]]\]"
                     }
                     pubRipeInfo {
-                        ::ripecheck::ripeInfo $channel $whoisdata(inetnum) $whoisdata(netname) $whoisdata(mntby) $whoisdata(country) $whoisdata(descr)
+                        ::ripecheck::ripeInfo $channel $whoisData
                     }
                     msgRipeInfo {
-                        ::ripecheck::ripeInfo $nick $whoisdata(inetnum) $whoisdata(netname) $whoisdata(mntby) $whoisdata(country) $whoisdata(descr)
+                        ::ripecheck::ripeInfo $nick $whoisData
                     }
                     default {
-                        ::ripecheck::ripecheck $ip $host $nick $channel $orghost $whoisdata(country)
+                        ::ripecheck::ripecheck $ip $host $nick $channel $orghost [dict get $whoisData Country]
                     }
                 }
             } else {
                 # Respond that something went wrong
                 ::ripecheck::notifySender $nick $channel $rtype "Whois query failed for '$host'!"
-                putlog "ripecheck: No country found for '$ip'. No further action taken. (Possible bug?)"
+                putlog "ripecheck: No country found for '$ip'. No further action taken. Possible bug?"
             }
         } else {
             set ::ripecheck::constate "timeout"
