@@ -830,7 +830,7 @@ namespace eval ::ripecheck {
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - $whoisdb answer: [dict get $whoisData Country]"
                 } elseif {[regexp -line -nocase {netname:\s*(.*)} $row -> data]} {
                     dict set whoisData NetName $data
-                } elseif {[regexp -line -nocase {descr:\s*(.*)} $row -> data] && ![info exists whoisdata(descr)]} {
+                } elseif {[regexp -line -nocase {descr:\s*(.*)} $row -> data] && ![dict exists $whoisData Description]} {
                     dict set whoisData Description $data
                 } elseif {[regexp -line -nocase {mnt-by:\s*(.*)} $row -> data]} {
                     dict set whoisData MntBy $data
