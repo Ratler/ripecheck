@@ -1,7 +1,6 @@
 ac Ascension Island
 ad Andorra
 ae United Arab Emirates
-aero Reserved for members of the air-transport industry
 af Afghanistan
 ag Antigua and Barbuda
 ai Anguilla
@@ -11,9 +10,8 @@ an Netherlands Antilles
 ao Angola
 aq Antarctica
 ar Argentina
-arpa Reserved exclusively to support operationally-critical infrastructural identifier spaces as advised by the Internet Architecture Board
 as American Samoa
-asia Restricted to the Pan-Asia and Asia Pacific community
+asia Pan-Asia and Asia Pacific community
 at Austria
 au Australia
 au Administration (auDA)
@@ -42,7 +40,6 @@ bw Botswana
 by Belarus
 bz Belize
 ca Canada
-cat Reserved for the Catalan linguistic and cultural community
 cc Cocos (Keeling) Islands
 cd Congo, The Democratic Republic of the
 cf Central African Republic
@@ -54,8 +51,6 @@ cl Chile
 cm Cameroon
 cn China
 co Colombia
-com Generic top-level domain
-coop Reserved for cooperative associations
 cr Costa Rica
 cu Cuba
 cv Cape Verde
@@ -69,7 +64,6 @@ dm Dominica
 do Dominican Republic
 dz Algeria
 ec Ecuador
-edu Reserved for post-secondary institutions accredited by an agency on the U.S. Department of Education's list of Nationally Recognized Accrediting Agencies 
 ee Estonia
 eg Egypt
 eh Western Sahara
@@ -94,7 +88,6 @@ gi Gibraltar
 gl Greenland
 gm Gambia
 gn Guinea
-gov Reserved exclusively for the United States Government
 gp Guadeloupe
 gq Equatorial Guinea
 gr Greece
@@ -114,17 +107,14 @@ ie Ireland
 il Israel
 im Isle of Man
 in India
-info Generic top-level domain
-int Used only for registering organizations established by international treaties between governments
 io British Indian Ocean Territory
 iq Iraq
-ir Iran, Islamic Republic of
+ir Iran
 is Iceland
 it Italy
 je Jersey
 jm Jamaica
 jo Jordan
-jobs Reserved for human resource managers
 jp Japan
 ke Kenya
 kg Kyrgyzstan
@@ -132,8 +122,8 @@ kh Cambodia
 ki Kiribati
 km Comoros
 kn Saint Kitts and Nevis
-kp Korea, Democratic People's Republic of
-kr Korea, Republic of
+kp Korea
+kr Korea
 kw Kuwait
 ky Cayman Islands
 kz Kazakhstan
@@ -155,30 +145,25 @@ me Montenegro
 mf Saint Martin
 mg Madagascar
 mh Marshall Islands
-mil Reserved exclusively for the United States Military
-mk Macedonia, The Former Yugoslav Republic of
+mk Macedonia
 ml Mali
 mm Myanmar
 mn Mongolia
 mo Macao
-mobi Reserved for consumers and providers of mobile products and services
 mp Northern Mariana Islands
 mq Martinique
 mr Mauritania
 ms Montserrat
 mt Malta
 mu Mauritius
-museum Reserved for museums
 mv Maldives
 mw Malawi
 mx Mexico
 my Malaysia
 mz Mozambique
 na Namibia
-name Reserved for individuals
 nc New Caledonia
 ne Niger
-net Generic top-level domain
 nf Norfolk Island
 ng Nigeria
 ni Nicaragua
@@ -189,7 +174,6 @@ nr Nauru
 nu Niue
 nz New Zealand
 om Oman
-org Generic top-level domain
 pa Panama
 pe Peru
 pf French Polynesia
@@ -200,7 +184,6 @@ pl Poland
 pm Saint Pierre and Miquelon
 pn Pitcairn
 pr Puerto Rico
-pro Restricted to credentialed professionals and related entities
 ps Palestinian Territory, Occupied
 pt Portugal
 pw Palau
@@ -233,7 +216,6 @@ sy Syrian Arab Republic
 sz Swaziland
 tc Turks and Caicos Islands
 td Chad
-tel Reserved for businesses and individuals to publish their contact data
 tf French Southern Territories
 tg Togo
 th Thailand
@@ -245,7 +227,6 @@ tn Tunisia
 to Tonga
 tp Portuguese Timor (being phased out)
 tr Turkey
-travel Reserved for entities whose primary area of activity is in the travel industry
 tt Trinidad and Tobago
 tv Tuvalu
 tw Taiwan
