@@ -306,10 +306,10 @@ namespace eval ::ripecheck {
                 return 1
             }
         }
-        ::ripecheck::onJoinRouter $iphost
+        ::ripecheck::onJoinRouter $nick $host $channel $iphost
     }
 
-    proc onJoinRouter { iphost } {
+    proc onJoinRouter { nick host channel iphost } {
         # Only run RIPE check on numeric IP unless ripecheck.topchk is enabled
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Found numeric IP $iphost ... scanning"
