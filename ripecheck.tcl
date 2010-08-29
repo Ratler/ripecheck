@@ -433,7 +433,7 @@ namespace eval ::ripecheck {
                 if {![info exists geoData($tag)]} {
                     set geoData($tag) ""
                 }
-                if {$tag == "CountryName" && [info exists geoData(CountryCode)]} {
+                if {$tag == "CountryName" && $geoData($tag) != "Reserved" && [info exists geoData(CountryCode)]} {
                     set geoData($tag) "$geoData($tag) \[$geoData(CountryCode)\]"
                 }
                 dict set geoDict $tag $geoData($tag)
@@ -529,6 +529,12 @@ namespace eval ::ripecheck {
         if {[dict get $geoData Status] != "OK"} {
             ::ripecheck::notifySender $nick $channel $rtype "ERROR: [dict get $geoData Status]"
             return 0
+        }
+
+        # If it is a reserved address send notice and abort
+        if {[dict get $geoData CountryName] == "Reserved"} {
+            ::ripecheck::notifySender $nick $channel $rtype "$ip belongs to a reserved net range"
+            return 1
         }
 
         # Get lengths for format
