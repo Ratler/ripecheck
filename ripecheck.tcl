@@ -796,6 +796,8 @@ namespace eval ::ripecheck {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - State 'connected' with '$whoisdb'"
 
             set ::ripecheck::constate "connected"
+            set descDone 0
+            set previous ""
 
             while {![eof $sock]} {
                 set row [gets $sock]
@@ -828,13 +830,15 @@ namespace eval ::ripecheck {
                         putlog "ripecheck: ERROR: Unknown referral type from '$whoisdb' for ip '$ip', please bug report this line."
                         close $sock; return 0
                     }
-                } elseif {[regexp -line -nocase {country:\s*([a-z]{2,6})} $row -> data]} {
+                } elseif {[regexp -line -nocase {country:\s*([a-z]{2,6})} $row -> data] && ![dict exists $whoisData Country]} {
                     dict set whoisData Country [string tolower $data]
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - $whoisdb answer: [dict get $whoisData Country]"
                 } elseif {[regexp -line -nocase {netname:\s*(.*)} $row -> data]} {
                     dict set whoisData NetName $data
-                } elseif {[regexp -line -nocase {descr:\s*(.*)} $row -> data] && ![dict exists $whoisData Description]} {
-                    dict set whoisData Description $data
+                } elseif {[regexp -line -nocase {descr:\s*(.*)} $row -> data] && $descDone == 0} {
+                    if {![regexp -line -nocase {^\=} $data]} {
+                        lappend whoisDesc $data
+                    }
                 } elseif {[regexp -line -nocase {mnt-by:\s*(.*)} $row -> data]} {
                     dict set whoisData MntBy $data
                 } elseif {[regexp -line -nocase {inetnum:\s*(.*)} $row -> data]} {
@@ -846,10 +850,20 @@ namespace eval ::ripecheck {
                 } elseif {[regexp -line {.*\((NET-[0-9]{1,3}-[0-9]{1,3}-[0-9]{1,3}.*)\)} $row -> data]} {
                     dict set whoisData fallback $data
                 }
+
+                if {$descDone == 0 && [regexp -line -nocase {descr:\s.*} $previous] && ![regexp -line -nocase {descr:\s.*} $row]} {
+                    set descDone 1
+                }
+                set previous $row
             }
 
             close $sock
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - End of while-loop in whois_callback"
+
+            # Set final description
+            if {[llength $whoisDesc] > 0} {
+                dict set whoisData Description [join $whoisDesc ", "]
+            }
 
             # Experimental feature that might replace lastResortMasks in the future
             if {[::ripecheck::isConfigEnabled fallback] && ![dict exists $whoisData Country] && [dict exists $whoisData fallback]} {
