@@ -849,14 +849,16 @@ namespace eval ::ripecheck {
                     if {![regexp -line -nocase {^\=} $data]} {
                         lappend whoisDesc $data
                     }
-                } elseif {[regexp -line -nocase {mnt-by:\s*(.*)} $row -> data]} {
+                } elseif {[regexp -line -nocase {owner:\s*(.*)} $row -> data]} {
+                    dict set whoisData Owner $data
+                } elseif {[dict get $whoisData MntBy] == "" && ([regexp -line -nocase {mnt-by:\s*(.*)} $row -> data] || [regexp -line -nocase {ownerid:\s*(.*)} $row -> data])} {
                     dict set whoisData MntBy $data
                 } elseif {[regexp -line -nocase {inetnum:\s*(.*)} $row -> data]} {
                     dict set whoisData InetNum $data
                 } elseif {[regexp -line -nocase {origin:\s*(.*)} $row -> data]} {
                     dict set whoisData Asn $data
-                } elseif {[regexp -line -nocase {abuse-mailbox:\s*(.*)} $row -> data]} {
-                    dict set whoisData AbuseMail $data
+                } elseif {[dict get $whoisData AbuseMail] == "" && ([regexp -line -nocase {abuse-mailbox:\s*(.*)} $row -> data] || [regexp -line -nocase {e-mail:\s*(.*)} $row -> data])} {
+                    dict set whoisData AbuseMail [string tolower $data]
                 } elseif {[regexp -line {.*\((NET-[0-9]{1,3}-[0-9]{1,3}-[0-9]{1,3}.*)\)} $row -> data]} {
                     dict set whoisData fallback $data
                 }
@@ -871,8 +873,10 @@ namespace eval ::ripecheck {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - End of while-loop in whois_callback"
 
             # Set final description
-            if {[llength $whoisDesc] > 0} {
+            if {[info exists whoisDesc] && [llength $whoisDesc] > 0} {
                 dict set whoisData Description [join $whoisDesc ", "]
+            } elseif {[dict exists $whoisData Owner]} {
+                dict set whoisData Description [dict get $whoisData Owner]
             }
 
             # Experimental feature that might replace lastResortMasks in the future
