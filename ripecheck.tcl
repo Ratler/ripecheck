@@ -308,10 +308,30 @@ namespace eval ::ripecheck {
                 return 1
             }
         }
-        ::ripecheck::onJoinRouter $nick $host $channel $iphost
+        dnslookup $iphost ::ripecheck::onJoinRouter $nick $host $channel
     }
 
-    proc onJoinRouter { nick host channel iphost } {
+    proc onJoinRouter { ip iphost status nick host channel } {
+        # DNS lookup successfull?
+        if {$status == 0} {
+            putlog "ripecheck: Couldn't resolve '$host'. No further action taken."
+            return 0
+        }
+
+        # First we try geoIP if enabled
+        if {[::ripecheck::isConfigEnabled geoban]} {
+            putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Using GeoIP (geoban enabled)"
+
+            set geoData [::ripecheck::getGeoData $ip]
+
+            if {[dict get $geoData Status] == "OK" && [dict get $geoData CountryName] != "Reserved"} {
+                putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Using GeoIP CountryCode: [dict get $geoData CountryCode]"
+                ::ripecheck::ripecheck $ip $iphost $nick $channel $host [string tolower [dict get $geoData CountryCode]]
+                return 1
+            }
+            putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Using GeoIP failed - using whois fallback"
+        }
+
         # Only run RIPE check on numeric IP unless ripecheck.topchk is enabled
         if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Found numeric IP $iphost ... scanning"
@@ -1338,6 +1358,7 @@ namespace eval ::ripecheck {
                 putidx $idx "     banreason \[string\]    : Set custom ban reason, support substitutional keywords, see below"
                 putidx $idx "     bantopreason \[string\] : Set custom TLD ban reason, support substitutional keywords, see below"
                 putidx $idx "     msgcmds \[on|off\]      : Enable or disable commands through private message"
+                putidx $idx "     geoban \[on|off\]       : Enable or disable GeoIP data as primary method of banning, whois will be used"
                 putidx $idx "                             as fallback"
                 putidx $idx "     logmode \[on|off\]      : Enable or disable log only mode, this will disable channel bans and kick counter."
                 putidx $idx "     fallback \[on|off\]     : \002EXPERIMENTAL!!! Use with caution!\002"
