@@ -300,8 +300,10 @@ namespace eval ::ripecheck {
                     set banreason "RIPE Country Check: Top domain .$htopdom is banned."
                 }
                 putlog "ripecheck: Matched top domain '$htopdom' banning *!*@*.$htopdom on $channel for $bantime minute(s)"
-                ::ripecheck::incrBanCount $channel
-                newchanban $channel "*!*@*.$htopdom" ripecheck $banreason $bantime
+                if {![::ripecheck::isConfigEnabled logmode]} {
+                    ::ripecheck::incrBanCount $channel
+                    newchanban $channel "*!*@*.$htopdom" ripecheck $banreason $bantime
+                }
 
                 return 1
             }
@@ -357,8 +359,10 @@ namespace eval ::ripecheck {
                 set banreason "RIPE Country Check: Matched $country \[$ripe\]"
             }
             putlog "ripecheck: Matched country $country \[$ripe\] banning $nick!$orghost on $channel for $bantime minute(s)"
-            ::ripecheck::incrBanCount $channel
-            newchanban $channel "*!*@$host" ripecheck $banreason $bantime
+            if {![::ripecheck::isConfigEnabled logmode]} {
+                ::ripecheck::incrBanCount $channel
+                newchanban $channel "*!*@$host" ripecheck $banreason $bantime
+            }
         }
     }
 
@@ -1040,7 +1044,7 @@ namespace eval ::ripecheck {
         set allowed_str_opts [list banreason bantopreason]
 
         # Allowed boolean options
-        set allowed_bool_opts [list msgcmds fallback]
+        set allowed_bool_opts [list msgcmds fallback geoban logmode]
 
         set option [string tolower [lindex [split $arg] 0]]
         set value [join [lrange [split $arg] 1 end]]
@@ -1294,7 +1298,9 @@ namespace eval ::ripecheck {
                 putidx $idx "    \002Options\002:"
                 putidx $idx "     banreason \[string\]    : Set custom ban reason, support substitutional keywords, see below"
                 putidx $idx "     bantopreason \[string\] : Set custom TLD ban reason, support substitutional keywords, see below"
-                putidx $idx "     msgcmds \[on|off\]      : Enable or Disable commands through private message"
+                putidx $idx "     msgcmds \[on|off\]      : Enable or disable commands through private message"
+                putidx $idx "                             as fallback"
+                putidx $idx "     logmode \[on|off\]      : Enable or disable log only mode, this will disable channel bans and kick counter."
                 putidx $idx "     fallback \[on|off\]     : \002EXPERIMENTAL!!! Use with caution!\002"
                 putidx $idx "                             This function will _try_ to detect country for an host where the whois server"
                 putidx $idx "                             only return a few NET-XXX-XXX-XXX-XXX entries."
