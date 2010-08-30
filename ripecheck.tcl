@@ -503,7 +503,7 @@ namespace eval ::ripecheck {
                            $len(NetName) "NetName" \
                            $len(MntBy) "MntBy" \
                            $len(Country) "Country" \
-                           $len(AbuseMail) "AbuseMail" \
+                           $len(AbuseMail) "Contact" \
                            $len(Description) "Description"]
 
         set msg [format "%-*s | %-*s | %-*s | %-*s | %-*s | %-*s | %-*s" \
@@ -791,13 +791,10 @@ namespace eval ::ripecheck {
     }
 
     proc whoisCallback { ip host nick channel orghost sock whoisdb rtype } {
-        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering whois_callback()"
-        dict set whoisData InetNum ""
-        dict set whoisData NetName ""
-        dict set whoisData MntBy ""
-        dict set whoisData Description ""
-        dict set whoisData Asn ""
-        dict set whoisData AbuseMail ""
+        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Entering whois_callback() - $rtype"
+        foreach entry [list InetNum NetName MntBy Description Asn AbuseMail] {
+            dict set whoisData $entry ""
+        }
 
         if {[string equal {} [fconfigure $sock -error]]} {
             puts $sock $ip
@@ -811,12 +808,18 @@ namespace eval ::ripecheck {
 
             while {![eof $sock]} {
                 set row [gets $sock]
+
+                # Probably rwhois data, strip network:
+                if {[regexp -line -nocase {^network:} $row]} {
+                    set row [join [lrange [split $row :] 1 end] ": "]
+                }
+
                 if {[regexp -line -nocase {referralserver:\s*(.*)} $row -> referral]} {
                     set referral [string tolower $referral]
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Found whois referral server: $referral"
 
                     # Extract the whois server from $referral
-                    if {[regexp -line -nocase {^whois://(.*[^/])/?} $referral -> referral]} {
+                    if {[regexp -line -nocase {^r?whois://(.*[^/])/?} $referral -> referral]} {
                         foreach {referral whoisport} [split $referral :] { break }
 
                         # Set default port if empty
@@ -832,51 +835,83 @@ namespace eval ::ripecheck {
                         ::ripecheck::whoisConnect $ip $host $nick $channel $orghost $referral $whoisport $rtype
 
                         return 1
-                    } elseif {[regexp -line -nocase {^rwhois://.*} $referral]} {
-                        # Ignore rwhois for now
-                        putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Ignoring rwhois referral"
-                        continue
                     } else {
                         putlog "ripecheck: ERROR: Unknown referral type from '$whoisdb' for ip '$ip', please bug report this line."
                         close $sock; return 0
                     }
-                } elseif {[regexp -line -nocase {country:\s*([a-z]{2,6})} $row -> data] && ![dict exists $whoisData Country]} {
+                } elseif {[regexp -line -nocase {(?:Country-Code|country):\s*([a-z]{2,6})} $row -> data] && ![dict exists $whoisData Country]} {
                     dict set whoisData Country [string tolower $data]
                     putloglev $::ripecheck::conflag * "ripecheck: DEBUG - $whoisdb answer: [dict get $whoisData Country]"
-                } elseif {[regexp -line -nocase {netname:\s*(.*)} $row -> data]} {
-                    dict set whoisData NetName $data
-                } elseif {[regexp -line -nocase {descr:\s*(.*)} $row -> data] && $descDone == 0} {
-                    if {![regexp -line -nocase {^\=} $data]} {
-                        lappend whoisDesc $data
-                    }
-                } elseif {[regexp -line -nocase {owner:\s*(.*)} $row -> data]} {
-                    dict set whoisData Owner $data
-                } elseif {[dict get $whoisData MntBy] == "" && ([regexp -line -nocase {mnt-by:\s*(.*)} $row -> data] || [regexp -line -nocase {ownerid:\s*(.*)} $row -> data])} {
-                    dict set whoisData MntBy $data
-                } elseif {[regexp -line -nocase {inetnum:\s*(.*)} $row -> data]} {
-                    dict set whoisData InetNum $data
-                } elseif {[regexp -line -nocase {origin:\s*(.*)} $row -> data]} {
-                    dict set whoisData Asn $data
-                } elseif {[dict get $whoisData AbuseMail] == "" && ([regexp -line -nocase {abuse-mailbox:\s*(.*)} $row -> data] || [regexp -line -nocase {e-mail:\s*(.*)} $row -> data])} {
-                    dict set whoisData AbuseMail [string tolower $data]
                 } elseif {[regexp -line {.*\((NET-[0-9]{1,3}-[0-9]{1,3}-[0-9]{1,3}.*)\)} $row -> data]} {
                     dict set whoisData fallback $data
                 }
 
-                if {$descDone == 0 && [regexp -line -nocase {descr:\s.*} $previous] && ![regexp -line -nocase {descr:\s.*} $row]} {
-                    set descDone 1
+                # Only run this for public commands to speed things up
+                if {$rtype != "ripecheck" && $rtype != "testRipeCheck"} {
+                    if {[regexp -line -nocase {netname:\s*(.*)} $row -> data]} {
+                        dict set whoisData NetName $data
+                    } elseif {[regexp -line -nocase {descr:\s*(.*)} $row -> data] && $descDone == 0} {
+                        if {![regexp -line -nocase {^\=} $data]} {
+                            lappend whoisDesc $data
+                        }
+                    } elseif {[regexp -line -nocase {owner:\s*(.*)} $row -> data]} {
+                        dict set whoisData Owner $data
+                    } elseif {[dict get $whoisData MntBy] == "" && ([regexp -line -nocase {mnt-by:\s*(.*)} $row -> data] || [regexp -line -nocase {ownerid:\s*(.*)} $row -> data])} {
+                        dict set whoisData MntBy $data
+                    } elseif {[regexp -line -nocase {(?:Auth-Area|inetnum):\s*(.*)} $row -> data]} {
+                        dict set whoisData InetNum $data
+                    } elseif {[regexp -line -nocase {origin:\s*(.*)} $row -> data]} {
+                        dict set whoisData Asn $data
+                    } elseif {[regexp -line -nocase {Org-Name:\s*(.*)} $row -> data]} {
+                        dict set whoisData OrgName $data
+                    } elseif {[regexp -line -nocase {Street-Address:\s*(.*)} $row -> data]} {
+                        dict set whoisData StreetAddress $data
+                    } elseif {[regexp -line -nocase {City:\s*(.*)} $row -> data]} {
+                        dict set whoisData City $data
+                    } elseif {[regexp -line -nocase {Postal-Code:\s*(.*)} $row -> data]} {
+                        dict set whoisData PostalCode $data
+                    } elseif {[regexp -line -nocase {State-Prov:\s*(.*)} $row -> data]} {
+                        dict set whoisData StateProv $data
+                    } elseif {[regexp -line -nocase {Abuse-Phone:\s*(.*)} $row -> data]} {
+                        dict set whoisData AbusePhone $data
+                    } elseif {[dict get $whoisData AbuseMail] == "" && [regexp -line -nocase {(?:Abuse-Email|abuse-mailbox|e-mail):\s*(.*)} $row -> data]} {
+                        dict set whoisData AbuseMail [string tolower $data]
+                    }
+
+                    if {$descDone == 0 && [regexp -line -nocase {descr:\s.*} $previous] && ![regexp -line -nocase {descr:\s.*} $row]} {
+                        set descDone 1
+                    }
+                    set previous $row
                 }
-                set previous $row
             }
 
             close $sock
             putloglev $::ripecheck::conflag * "ripecheck: DEBUG - End of while-loop in whois_callback"
 
-            # Set final description
-            if {[info exists whoisDesc] && [llength $whoisDesc] > 0} {
-                dict set whoisData Description [join $whoisDesc ", "]
-            } elseif {[dict exists $whoisData Owner]} {
-                dict set whoisData Description [dict get $whoisData Owner]
+            # Only run this for public commands to speed things up
+            if {$rtype != "ripecheck" && $rtype != "testRipeCheck" } {
+                # Append phone number to abuse contact
+                if {[dict exists $whoisData AbusePhone]} {
+                    if {[dict exists $whoisData AbuseMail]} {
+                        dict set whoisData AbuseMail "[dict get $whoisData AbuseMail], [dict get $whoisData AbusePhone]"
+                    } else {
+                        dict set whoisData AbuseMail [dict get $whoisData AbusePhone]
+                    }
+                }
+
+                # Set final description
+                if {![info exists whoisDesc]} {
+                    foreach entry [list OrgName StreetAddress City StateProv PostalCode Country] {
+                        if {[dict exists $whoisData $entry]} {
+                            lappend whoisDesc [dict get $whoisData $entry]
+                        }
+                    }
+                }
+                if {[info exists whoisDesc] && [llength $whoisDesc] > 0} {
+                    dict set whoisData Description [join $whoisDesc ", "]
+                } elseif {[dict exists $whoisData Owner]} {
+                    dict set whoisData Description [dict get $whoisData Owner]
+                }
             }
 
             # Experimental feature that might replace lastResortMasks in the future
