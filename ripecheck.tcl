@@ -472,7 +472,7 @@ namespace eval ::ripecheck {
 
     proc test { nick idx arg } {
         if {[llength [split $arg]] != 2} {
-            ::ripecheck::help $nick $idx testripecheck; return 0
+            ::stderreu::testripecheck $idx; return 0
         }
 
         foreach {channel ip} $arg {break}
@@ -989,7 +989,7 @@ namespace eval ::ripecheck {
     # Add top resolv domain for channel and write settings to file
     proc addTopResolve { nick idx arg } {
         if {[llength [split $arg]] != 2} {
-            ::ripecheck::help $nick $idx +ripetopresolv; return 0
+            ::stderreu::+ripetopresolv $idx; return 0
         }
 
         foreach {channel topdom} $arg {break}
@@ -1031,7 +1031,7 @@ namespace eval ::ripecheck {
     # Remove resolve domain from channel and write settings to file
     proc delTopResolve { nick idx arg } {
         if {[llength [split $arg]] != 2} {
-            ::ripecheck::help $nick $idx -ripetopresolv; return 0
+            ::stderreu::-ripetopresolv $idx; return 0
         }
 
         foreach {channel topdom} $arg {break}
@@ -1099,7 +1099,7 @@ namespace eval ::ripecheck {
     # Function to set general options
     proc config { nick idx arg } {
         if {!([llength [split $arg]] > 0)} {
-            ::ripecheck::help $nick $idx ripeconfig; return 0
+            ::stderreu::ripeconfig $idx; return 0
         }
 
         # Allowed string options
@@ -1150,7 +1150,7 @@ namespace eval ::ripecheck {
     # Add top domain to channel and write settings to file
     proc addTopDom { nick idx arg } {
         if {[llength [split $arg]] != 2} {
-            ::ripecheck::help $nick $idx +ripetopdom; return 0
+            ::stderreu::+ripetopdom $idx; return 0
         }
 
         foreach {channel topdom} $arg {break}
@@ -1186,7 +1186,7 @@ namespace eval ::ripecheck {
     # Remove top domain for channel and write settings to file
     proc delTopDom { nick idx arg } {
         if {[llength [split $arg]] != 2} {
-            ::ripecheck::help $nick $idx -ripetopdom; return 0
+            ::stderreu::-ripetopdom $idx; return 0
         }
 
         foreach {channel topdom} $arg {break}
