@@ -348,7 +348,7 @@ namespace eval ::ripecheck {
             set htopdom [lindex [split $iphost "."] end]
             if {[::ripecheck::isInTopResolve $channel $htopdom]} {
                 putloglev $::ripecheck::conflag * "ripecheck: DEBUG - Matched top resolve domain '$htopdom' for host '$iphost'"
-                dnslookup $iphost ::ripecheck::whoisFindServer $nick $channel $host ripecheck
+                ::ripecheck::whoisFindServer $ip $iphost 1 $nick $channel $host ripecheck
             }
         }
     }
@@ -876,7 +876,7 @@ namespace eval ::ripecheck {
                         }
                     } elseif {[regexp -line -nocase {owner:\s*(.*)} $row -> data]} {
                         dict set whoisData Owner $data
-                    } elseif {[dict get $whoisData MntBy] == "" && ([regexp -line -nocase {mnt-by:\s*(.*)} $row -> data] || [regexp -line -nocase {ownerid:\s*(.*)} $row -> data])} {
+                    } elseif {[dict get $whoisData MntBy] == "" && [regexp -line -nocase {(?:ownerid|mnt-by):\s*(.*)} $row -> data]} {
                         dict set whoisData MntBy $data
                     } elseif {[regexp -line -nocase {(?:Auth-Area|inetnum):\s*(.*)} $row -> data]} {
                         dict set whoisData InetNum $data

@@ -1,11 +1,11 @@
-Requirements: 
-* Eggdrop >= 1.6.17
-* tcllib >= 1.8
+Requirements:
+* Eggdrop >= 1.6.18
+* tcllib >= 1.10
 
 Installation:
 1) Copy ripcheck.tcl, iplist.txt and tld_country_list.txt to your scripts directory
 
-2) (Optional, defaults should suffice) Edit ripecheck.tcl and 
+2) (Optional, defaults should suffice) Edit ripecheck.tcl and
    modify path to iplist.txt and settings file
 
 3) Add 'source scripts/ripecheck.tcl' without the quotes in the
