@@ -14,13 +14,18 @@
 #   you wish to ban.
 # * Customizable ban messages with simple keyword support, see .help ripeconfig
 # * Builtin help pages, see .help ripecheck or .help
-# * !ripeinfo <nick|host> to get verbose information from whois about the host
+# * !ripeinfo [#channel] <nick|host> to get verbose information from whois about the host
 # * !ripeinfo and !ripecheck are available as public commands and through private
 #   /msg to the bot (if enabled)
 # * Ban counter, number of times ripecheck have banned someone in the channel
 # * !ripestatus [*|#channel] show settings and bancount stats for the channel
 # * Whitelist mode. Only let hosts from a country specified by the TLD list
 #   enter the channel, everyone else get banned.
+# * NEW: GeoIP from ipinfodb.com
+# * !ripegeo [#channel] <nick|host> to get country, region, city, latitude,
+#   longitude and google map url. Available as public and private commands.
+# * Ripecheck now support using GeoIP as primary ban method, if GeoIP fail ripecheck
+#   will automatically fall back using whois
 ###
 # Require / Depends:
 # TCL >= 8.5
@@ -108,8 +113,8 @@
 #
 # Public channel commands:
 # !ripecheck <nick|host>
-# !ripeinfo <nick|host>
-# !ripegeo <nick|host>
+# !ripeinfo [#channel] <nick|host>
+# !ripegeo [#channel] <nick|host>
 # !ripestatus [*|#channel]
 #
 # Private msg commands:
