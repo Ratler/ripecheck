@@ -84,6 +84,9 @@
 #   banreason [string]    : Set custom ban reason, support substitutional keywords, see below
 #   bantopreason [string] : Set custom TLD ban reason, support substitutional keywords, see below
 #   msgcmds [on|off]      : Enable or Disable commands through private message
+#   geoban [on|off]       : Enable or disable GeoIP data as primary method of banning, whois will be used
+#                           as fallback
+#   logmode [on|off]      : Enable or disable log only mode, this will disable channel bans and kick counter.
 #   fallback [on|off]     : EXPERIMENTAL!!! Use with caution!
 #                           This function will _try_ to detect country for an host where the whois server
 #                           only return a few NET-XXX-XXX-XXX-XXX entries.
@@ -186,7 +189,7 @@ bind dcc m|ov +ripetopresolv ::ripecheck::addTopResolve
 bind dcc m|ov -ripetopresolv ::ripecheck::delTopResolve
 bind dcc m|ov ripeconfig ::ripecheck::config
 bind dcc -|- ripesettings ::ripecheck::settings
-bind dcc -|- help ::ripecheck::help
+bind dcc -|- help ::stderreu::help
 bind pub -|- !ripecheck ::ripecheck::pubRipeCheck
 bind msg -|- !ripecheck ::ripecheck::msgRipeCheck
 bind pub -|- !ripeinfo ::ripecheck::pubRipeInfo
@@ -1299,101 +1302,140 @@ namespace eval ::ripecheck {
         close $fp
     }
 
+
+}
+
+# This name space is shared between all my script to hook into .help
+namespace eval ::stderreu {
+    variable helpfuncs
+
+    if {![info exists ::stderreu::helpfuncs] || ![dict exists $::stderreu::helpfuncs ripecheck]} {
+        dict set ::stderreu::helpfuncs ripecheck [list ripecheck +ripetopresolv -ripetopresolv +ripetopdom -ripetopdom ripesettings ripeconfig testripecheck]
+    }
+
+    proc ripecheck { idx } {
+        putidx $idx "### \002ripecheck v$::ripecheck::version\002 by Ratler ###"; putidx $idx ""
+        putidx $idx "### \002chanset <channel> <+/->ripecheck\002"
+        putidx $idx "    Enable (+) or disable (-) the script for specified channel"
+        putidx $idx "### \002chanset <channel> ripecheck.bantime <minutes>\002"
+        putidx $idx "    For how long should the ban be active in minutes"
+        putidx $idx "### \002chanset <channel> <+/->ripecheck.topchk\002"
+        putidx $idx "    Enable (+) or disable (-) top domain resolve check"
+        putidx $idx "### \002chanset <channel> <+/->ripecheck.topban\002"
+        putidx $idx "    Enable (+) or disable (-) top domain banning based on the topdomain list"
+        putidx $idx "### \002chanset <channel> <+/->ripecheck.pubcmd\002"
+        putidx $idx "    Enable (+) or disable (-) public commands (!ripecheck)"
+        putidx $idx "### \002chanset <channel> <+/->ripecheck.whitelist\002"
+        putidx $idx "    Enable (+) or disable (-) whitelist mode"
+        putidx $idx "    The whitelist mode reverse the ripecheck behavior when matching"
+        putidx $idx "    a country against the topdomain list. Instead of banning a country that"
+        putidx $idx "    exist in the topdomain list it will let that host enter the channel and ban"
+        putidx $idx "    everyone else."
+        ::stderreu::+ripetopresolv $idx
+        ::stderreu::-ripetopresolv $idx
+        ::stderreu::+ripetopdom $idx
+        ::stderreu::-ripetopdom $idx
+        ::stderreu::ripesettings $idx
+        ::stderreu::ripeconfig $idx
+        ::stderreu::testripecheck $idx
+        putidx $idx "### \002help ripecheck\002"
+        putidx $idx "    This help page you're currently viewing"
+    }
+
+    proc +ripetopresolv { idx } {
+        putidx $idx "### \002+ripetopresolv <channel> <topdomain|*>\002"
+        putidx $idx "    Add a top domain or regexp pattern that you want to resolve for"
+        putidx $idx "    further ripe checking. It's possible that domains like com, info, org"
+        putidx $idx "    could be from a country that is banned in the top domain list."
+        putidx $idx "    Example (match .com): .+ripetopresolv #channel com"
+        putidx $idx "    Example (match everything): .+ripetopresolv #channel *"
+    }
+
+    proc -ripetopresolv { idx } {
+        putidx $idx "### \002-ripetopresolv <channel> <topdomain|*>\002"
+        putidx $idx "    Remove a top resolve domain or * from the channel that"
+        putidx $idx "    you no longer wish to resolve."
+    }
+
+    proc +ripetopdom { idx } {
+        putidx $idx "### \002+ripetopdom <channel> <topdomain>\002"
+        putidx $idx "    Add a top domain for the channel that you wish to ban"
+        putidx $idx "    Example: .+ripetopdom #channel ro"
+    }
+    proc -ripetopdom { idx } {
+        putidx $idx "### \002-ripetopdom <channel> <topdomain>\002"
+        putidx $idx "    Remove a top domain from the channel that you no longer"
+        putidx $idx "    wish to ban"
+    }
+    proc ripeconfig { idx } {
+        putidx $idx "### \002ripeconfig <option> \[value\]\002"
+        putidx $idx "    \002Options\002:"
+        putidx $idx "     banreason \[string\]    : Set custom ban reason, support substitutional keywords, see below"
+        putidx $idx "     bantopreason \[string\] : Set custom TLD ban reason, support substitutional keywords, see below"
+        putidx $idx "     msgcmds \[on|off\]      : Enable or disable commands through private message"
+        putidx $idx "     geoban \[on|off\]       : Enable or disable GeoIP data as primary method of banning, whois will be used"
+        putidx $idx "                             as fallback"
+        putidx $idx "     logmode \[on|off\]      : Enable or disable log only mode, this will disable channel bans and kick counter."
+        putidx $idx "     fallback \[on|off\]     : \002EXPERIMENTAL!!! Use with caution!\002"
+        putidx $idx "                             This function will _try_ to detect country for an host where the whois server"
+        putidx $idx "                             only return a few NET-XXX-XXX-XXX-XXX entries."
+        putidx $idx "                             The intention is to replace lastResortMask."
+        putidx $idx "    \002Examples\002:"
+        putidx $idx "     TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
+        putidx $idx "     Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
+        putidx $idx "     Enable msgcmds: .ripeconfig msgcmds on"
+        putidx $idx "     Disable msgcmds: .ripeconfig msgcmds off"
+        putidx $idx "    \002Substitutional keywords, current keywords are\002:"
+        putidx $idx "     %tld% = Top level domain, ie .us, .se, .no"
+        putidx $idx "     %country% = Country name"
+        putidx $idx "     %nick% = Nickname of the user being banned"
+        putidx $idx "    \002*NOTE*\002:"
+        putidx $idx "      To completely remove an option from the configuration leave \[value\] blank, ie .ripeconfig msgcmds"
+    }
+    proc ripesettings { idx } {
+        putidx $idx "### \002ripesettings\002"
+        putidx $idx "    View current settings"
+    }
+    proc testripecheck { idx } {
+        putidx $idx "### \002testripecheck <channel> <host>\002"
+    }
+
+    proc ripecheckdefault { idx } {
+        putidx $idx "\n\nripecheck v$::ripecheck::version commands:"
+        putidx $idx "   \002+ripetopresolv    -ripetopresolv    +ripetopdom    -ripetopdom\002"
+        putidx $idx "   \002ripesettings      ripeconfig        testripecheck\002"
+    }
+
     proc help { hand idx arg } {
-        switch -- $arg {
-            ripecheck {
-                putidx $idx "### \002ripecheck v$::ripecheck::version\002 by Ratler ###"; putidx $idx ""
-                putidx $idx "### \002chanset <channel> <+/->ripecheck\002"
-                putidx $idx "    Enable (+) or disable (-) the script for specified channel"
-                putidx $idx "### \002chanset <channel> ripecheck.bantime <minutes>\002"
-                putidx $idx "    For how long should the ban be active in minutes"
-                putidx $idx "### \002chanset <channel> <+/->ripecheck.topchk\002"
-                putidx $idx "    Enable (+) or disable (-) top domain resolve check"
-                putidx $idx "### \002chanset <channel> <+/->ripecheck.topban\002"
-                putidx $idx "    Enable (+) or disable (-) top domain banning based on the topdomain list"
-                putidx $idx "### \002chanset <channel> <+/->ripecheck.pubcmd\002"
-                putidx $idx "    Enable (+) or disable (-) public commands (!ripecheck)"
-                putidx $idx "### \002chanset <channel> <+/->ripecheck.whitelist\002"
-                putidx $idx "    Enable (+) or disable (-) whitelist mode"
-                putidx $idx "    The whitelist mode reverse the ripecheck behavior when matching"
-                putidx $idx "    a country against the topdomain list. Instead of banning a country that"
-                putidx $idx "    exist in the topdomain list it will let that host enter the channel and ban"
-                putidx $idx "    everyone else."
-                ::ripecheck::help $hand $idx +ripetopresolv
-                ::ripecheck::help $hand $idx -ripetopresolv
-                ::ripecheck::help $hand $idx +ripetopdom
-                ::ripecheck::help $hand $idx -ripetopdom
-                ::ripecheck::help $hand $idx ripesettings
-                ::ripecheck::help $hand $idx ripeconfig
-                ::ripecheck::help $hand $idx testripecheck
-                putidx $idx "### \002help ripecheck\002"
-                putidx $idx "    This help page you're currently viewing"
+        set myarg [join $arg]
+        # First we test if arg is all to print eggdrop builtin commands,
+        # then we call the help proc for each script loaded
+        if {$myarg == "all"} {
+            *dcc:help $hand $idx [join $arg]
+            foreach key [dict keys $::stderreu::helpfuncs] {
+                ::stderreu::$key $idx
             }
-            +ripetopresolv {
-                putidx $idx "### \002+ripetopresolv <channel> <topdomain|*>\002"
-                putidx $idx "    Add a top domain or regexp pattern that you want to resolve for"
-                putidx $idx "    further ripe checking. It's possible that domains like com, info, org"
-                putidx $idx "    could be from a country that is banned in the top domain list."
-                putidx $idx "    Example (match .com): .+ripetopresolv #channel com"
-                putidx $idx "    Example (match everything): .+ripetopresolv #channel *"
-            }
-            -ripetopresolv {
-                putidx $idx "### \002-ripetopresolv <channel> <topdomain|*>\002"
-                putidx $idx "    Remove a top resolve domain or * from the channel that"
-                putidx $idx "    you no longer wish to resolve."
-            }
-            +ripetopdom {
-                putidx $idx "### \002+ripetopdom <channel> <topdomain>\002"
-                putidx $idx "    Add a top domain for the channel that you wish to ban"
-                putidx $idx "    Example: .+ripetopdom #channel ro"
-            }
-            -ripetopdom {
-                putidx $idx "### \002-ripetopdom <channel> <topdomain>\002"
-                putidx $idx "    Remove a top domain from the channel that you no longer"
-                putidx $idx "    wish to ban"
-            }
-            ripeconfig {
-                putidx $idx "### \002ripeconfig <option> \[value\]\002"
-                putidx $idx "    \002Options\002:"
-                putidx $idx "     banreason \[string\]    : Set custom ban reason, support substitutional keywords, see below"
-                putidx $idx "     bantopreason \[string\] : Set custom TLD ban reason, support substitutional keywords, see below"
-                putidx $idx "     msgcmds \[on|off\]      : Enable or disable commands through private message"
-                putidx $idx "     geoban \[on|off\]       : Enable or disable GeoIP data as primary method of banning, whois will be used"
-                putidx $idx "                             as fallback"
-                putidx $idx "     logmode \[on|off\]      : Enable or disable log only mode, this will disable channel bans and kick counter."
-                putidx $idx "     fallback \[on|off\]     : \002EXPERIMENTAL!!! Use with caution!\002"
-                putidx $idx "                             This function will _try_ to detect country for an host where the whois server"
-                putidx $idx "                             only return a few NET-XXX-XXX-XXX-XXX entries."
-                putidx $idx "                             The intention is to replace lastResortMask."
-                putidx $idx "    \002Examples\002:"
-                putidx $idx "     TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
-                putidx $idx "     Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
-                putidx $idx "     Enable msgcmds: .ripeconfig msgcmds on"
-                putidx $idx "     Disable msgcmds: .ripeconfig msgcmds off"
-                putidx $idx "    \002Substitutional keywords, current keywords are\002:"
-                putidx $idx "     %tld% = Top level domain, ie .us, .se, .no"
-                putidx $idx "     %country% = Country name"
-                putidx $idx "     %nick% = Nickname of the user being banned"
-                putidx $idx "    \002*NOTE*\002:"
-                putidx $idx "      To completely remove an option from the configuration leave \[value\] blank, ie .ripeconfig msgcmds"
-            }
-            ripesettings {
-                putidx $idx "### \002ripesettings\002"
-                putidx $idx "    View current settings"
-            }
-            testripecheck {
-                putidx $idx "### \002testripecheck <channel> <host>\002"
-            }
-            default {
-                *dcc:help $hand $idx [join $arg]
-                if {[llength [split $arg]] == 0} {
-                    putidx $idx "\n\nripecheck v$::ripecheck::version commands:"
-                    putidx $idx "   \002+ripetopresolv    -ripetopresolv    +ripetopdom    -ripetopdom\002"
-                    putidx $idx "   \002ripesettings      ripeconfig        testripecheck\002"
+            return 1
+        } else {
+            foreach key [dict keys $::stderreu::helpfuncs] {
+                foreach helpf [dict get $::stderreu::helpfuncs $key] {
+                    if { $helpf == $myarg } {
+                        ::stderreu::$helpf $idx
+                        return 1
+                    }
                 }
-                return 1
             }
         }
+
+        *dcc:help $hand $idx $myarg
+
+        if {[llength [split $arg]] == 0} {
+            foreach key [dict keys $::stderreu::helpfuncs] {
+                ::stderreu::${key}default $idx
+            }
+        }
+        return 1
     }
 }
+
 putlog "\002Ripecheck v$::ripecheck::version\002 by Ratler loaded"
