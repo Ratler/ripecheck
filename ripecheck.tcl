@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.3  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.3.1  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -182,6 +182,7 @@ setudef flag ripecheck.whitelist
 setudef int ripecheck.bantime
 
 # Packages
+package require Tcl 8.5
 package require ip
 package require http
 
@@ -205,7 +206,7 @@ bind pub -|- !ripegeo ::ripecheck::pubRipeGeo
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.3"
+    variable version "3.3.1"
 
     variable ipinfodb "http://ipinfodb.com/ip_query.php?ip="
     variable maskarray
@@ -321,7 +322,7 @@ namespace eval ::ripecheck {
 
     proc onJoinRouter { ip iphost status nick host channel } {
         # DNS lookup successfull?
-        if {$status == 0} {
+        if {$status == 0 && ![regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
             putlog "ripecheck: Couldn't resolve '$host'. No further action taken."
             return 0
         }
