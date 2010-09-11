@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.3.1  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.3.2  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -206,7 +206,7 @@ bind pub -|- !ripegeo ::ripecheck::pubRipeGeo
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.3.1"
+    variable version "3.3.2"
 
     variable ipinfodb "http://ipinfodb.com/ip_query.php?ip="
     variable maskarray
@@ -390,7 +390,7 @@ namespace eval ::ripecheck {
             putlog "ripecheck: Matched country $country \[$ripe\] banning $nick!$orghost on $channel for $bantime minute(s)"
             if {![::ripecheck::isConfigEnabled logmode]} {
                 ::ripecheck::incrBanCount $channel
-                newchanban $channel "*!*@$host" ripecheck $banreason $bantime
+                newchanban $channel "*!*@$ip" ripecheck $banreason $bantime
             }
         }
     }
