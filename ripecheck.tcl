@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.3.2  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.3.3-dev  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -206,7 +206,7 @@ bind pub -|- !ripegeo ::ripecheck::pubRipeGeo
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.3.2"
+    variable version "3.3.3-dev"
 
     variable ipinfodb "http://ipinfodb.com/ip_query.php?ip="
     variable maskarray
