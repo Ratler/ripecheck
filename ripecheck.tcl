@@ -370,7 +370,7 @@ namespace eval ::ripecheck {
     }
 
     proc notifySender { nick channel rtype msg } {
-        ::ripecheck::debug "ripecheck: DEBUG: Entering notifySender()"
+        ::ripecheck::debug "Entering notifySender()"
         if {[regexp {^pub} $rtype]} {
             puthelp "PRIVMSG $channel :$nick: \[ripecheck\] $msg"
         } elseif {[regexp {^msg} $rtype]} {
