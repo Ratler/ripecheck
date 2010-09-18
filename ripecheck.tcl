@@ -203,6 +203,8 @@ bind msg -|- !ripeinfo ::ripecheck::msgRipeInfo
 bind pub -|- !ripestatus ::ripecheck::pubRipeStatus
 bind msg -|- !ripegeo ::ripecheck::msgRipeGeo
 bind pub -|- !ripegeo ::ripecheck::pubRipeGeo
+bind msg -|- !ripetld ::ripecheck::msgRipeTld
+bind pub -|- !ripetld ::ripecheck::pubRipeTld
 
 namespace eval ::ripecheck {
     # Global variables
@@ -364,9 +366,9 @@ namespace eval ::ripecheck {
 
     proc notifySender { nick channel rtype msg } {
         putloglev $::ripecheck::conflag * "ripecheck: DEBUG: Entering notifySender()"
-        if {$rtype == "pubRipeCheck" || $rtype == "pubRipeInfo" || $rtype == "pubRipeGeo"} {
+        if {[regexp {^pub} $rtype]} {
             puthelp "PRIVMSG $channel :$nick: \[ripecheck\] $msg"
-        } elseif {$rtype == "msgRipeInfo" || $rtype == "msgRipeCheck" || $rtype == "msgRipeGeo"} {
+        } elseif {[regexp {^msg} $rtype]} {
             puthelp "PRIVMSG $nick :ripecheck: $msg"
         }
     }
@@ -733,6 +735,29 @@ namespace eval ::ripecheck {
     proc msgRipeGeo { nick host handle ip } {
         if {[::ripecheck::isConfigEnabled msgcmds]} {
             ::ripecheck::pubParseIp $nick $host $handle "" $ip msgRipeGeo
+        }
+    }
+
+    proc pubRipeTld { nick host handle channel tld } {
+        set channel [string tolower $channel]
+        if {![channel get $channel ripecheck.pubcmd]} { return 0 }
+        set country [::ripecheck::getCountry $tld]
+        if { $country != "" } {
+            ::ripecheck::notifySender $nick $channel pubRipeTld "Country for TLD '$tld' is '$country'"
+        } else {
+            ::ripecheck::notifySender $nick $channel pubRipeTld "No matching country for TLD '$tld'"
+        }
+    }
+
+    proc msgRipeTld { nick host handle tld } {
+        # Check if msgcmds is enabled
+        if {[::ripecheck::isConfigEnabled msgcmds]} {
+            set country [::ripecheck::getCountry $tld]
+            if { $country != "" } {
+                ::ripecheck::notifySender $nick "" msgRipeTld "Country for TLD '$tld' is '$country'"
+            } else {
+                ::ripecheck::notifySender $nick "" msgRipeTld "No matching country for TLD '$tld'"
+            }
         }
     }
 
@@ -1252,7 +1277,7 @@ namespace eval ::ripecheck {
 
     # Return a country based on tld or return "" if no country is found
     proc getCountry { tld } {
-        if {[array size ::ripecheck::tldtocountry] > 0} {
+        if {[array size ::ripecheck::tldtocountry] > 0 && [info exists ::ripecheck::tldtocountry($tld)]} {
             set country $::ripecheck::tldtocountry($tld)
             if {$country != ""} {
                 return $country
