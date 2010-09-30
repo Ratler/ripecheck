@@ -330,7 +330,7 @@ namespace eval ::ripecheck {
     proc onJoinRouter { ip iphost status nick host channel } {
         # DNS lookup successfull?
         if {$status == 0 && ![regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
-            putlog "ripecheck: Couldn't resolve '$host'. No further action taken."
+            putlog "ripecheck: Couldn't resolve '$iphost'. No further action taken."
             return 0
         }
 
