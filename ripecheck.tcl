@@ -397,7 +397,7 @@ namespace eval ::ripecheck {
             putlog "ripecheck: Matched country $country \[$ripe\] banning $nick!$orghost on $channel for $bantime minute(s)"
             if {![::ripecheck::isConfigEnabled logmode]} {
                 ::ripecheck::incrBanCount $channel
-                newchanban $channel "*!*@$ip" ripecheck $banreason $bantime
+                newchanban $channel "*!*@$host" ripecheck $banreason $bantime
             }
         }
     }
