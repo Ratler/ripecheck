@@ -35,87 +35,16 @@
 # Load the script and change the topdomains you
 # wish to ban.
 #
-# testripecheck <channel> <host>
-# Test host or ip from dcc console with your current settings
+# For help and available commands see:
+# .help ripecheck
 #
-# chanset <channel> <+/->ripecheck
-# This will either enable (+) or disable (-) the script for the
-# specified channel
-#
-# chanset <channel> ripecheck.bantime <number>
-# For how long should the ban be active in minutes
-#
-# chanset <channel> <+/->ripecheck.topchk
-# Enable (+) or disable (-) top domain resolve check
-#
-# chanset <channel> <+/->ripecheck.topban
-# Enable (+) or disable (-) top domain banning based on
-# the topdomain list
-#
-# chanset <channel> <+/->ripecheck.pubcmd
-# Enable (+) or disable (-) public commands (!ripecheck)
-#
-# chanset <channel> <+/->ripecheck.whitelist
-# Enable (+) or disable (-) whitelist mode
-# The whitelist mode reverse the ripecheck behavior when matching
-# a country against the topdomain list. Instead of banning a country that
-# exist in the topdomain list it will let that host enter the channel and ban
-# everyone else.
-#
-# +ripetopresolv <channel> <topdomain|*>
-# Add a top domain or regexp pattern that you want to resolve for
-# further ripe checking. It's possible that domains like com, info, org
-# could be from a country that is banned in the top domain list.
-# Example (match .com): .+ripetopresolv #channel com
-# Example (match everything): .+ripetopresolv #channel *
-#
-# -ripetopresolv <channel> <topdomain|*>
-# Remove a top resolve domain or regexp pattern from the channel that
-# you no longer wish to resolve.
-#
-# +ripetopdom <channel> <topdomain>
-# Add a top domain for the channel that you wish to ban
-# Example: .+ripetopdom #channel ro
-#
-# -ripetopdom <channel> <topdomain>
-# Remove a top domain from the channel that you no longer
-# wish to ban
-#
-# ripesettings
-# List current channel settings
-#
-# ripeconfig <option> [value]
-#  Options:
-#   banreason [string]    : Set custom ban reason, support substitutional keywords, see below
-#   bantopreason [string] : Set custom TLD ban reason, support substitutional keywords, see below
-#   msgcmds [on|off]      : Enable or Disable commands through private message
-#   geoban [on|off]       : Enable or disable GeoIP data as primary method of banning, whois will be used
-#                           as fallback
-#   logmode [on|off]      : Enable or disable log only mode, this will disable channel bans and kick counter.
-#   fallback [on|off]     : EXPERIMENTAL!!! Use with caution!
-#                           This function will _try_ to detect country for an host where the whois server
-#                           only return a few NET-XXX-XXX-XXX-XXX entries.
-#                           The intention is to replace lastResortMask.
-#  Examples:
-#   TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here
-#   Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here
-#   Enable msgcmds: .ripeconfig msgcmds on
-#   Disable msgcmds: .ripeconfig msgcmds off
-#  Substitutional keywords, current keywords are:
-#   %tld% = Top level domain, ie .us, .se, .no
-#   %country% = Country name
-#   %nick% = Nickname of the user being banned
-#  *NOTE*:
-#   To completely remove an option from the configuration leave \[value\] blank, ie .ripeconfig msgcmds
-#
-# help ripecheck
-# View ripecheck command help page through dcc console
-#
+###
 # Public channel commands:
 # !ripecheck <nick|host>
 # !ripeinfo [#channel] <nick|host>
 # !ripegeo [#channel] <nick|host>
 # !ripestatus [*|#channel]
+# !ripescan [channel]
 #
 # Private msg commands:
 # !ripecheck <host>
@@ -124,6 +53,13 @@
 ###
 # Tested:
 # eggdrop v1.6.19 GNU/Linux with tcl 8.5 and tcllib 1.10
+# eggdrop v1.6.20 GNU/Linux with tcl 8.5 and tcllib 1.12
+# - Known issues
+#   - There is a bug in 1.6.20 with the new notifier code
+#     and vwait that cause segmentation fault after running
+#     the bot for a while. Workaround right now is to disable
+#     the new code by changing #ifdef HAVE_TCL_SETNOTIFIER 1 to #undef HAVE_TCL_SETNOTIFIER
+#     in config.h and recompiling your eggdrop.
 ###
 # BUGS?!
 # If you discover any problems please send an e-mail
@@ -194,6 +130,7 @@ bind dcc m|ov -ripetopdom ::ripecheck::delTopDom
 bind dcc m|ov +ripetopresolv ::ripecheck::addTopResolve
 bind dcc m|ov -ripetopresolv ::ripecheck::delTopResolve
 bind dcc m|ov ripeconfig ::ripecheck::config
+bind dcc m|ov ripescan ::ripecheck::dccRipeScan
 bind dcc -|- ripesettings ::ripecheck::settings
 bind dcc -|- help ::stderreu::help
 bind pub -|- !ripecheck ::ripecheck::pubRipeCheck
@@ -205,6 +142,7 @@ bind msg -|- !ripegeo ::ripecheck::msgRipeGeo
 bind pub -|- !ripegeo ::ripecheck::pubRipeGeo
 bind msg -|- !ripetld ::ripecheck::msgRipeTld
 bind pub -|- !ripetld ::ripecheck::pubRipeTld
+bind pub m|o !ripescan ::ripecheck::pubRipeScan
 
 namespace eval ::ripecheck {
     # Global variables
@@ -792,6 +730,55 @@ namespace eval ::ripecheck {
         }
     }
 
+    proc pubRipeScan { nick host handle channel arg } {
+        set channel [string tolower $channel]
+        if {![channel get $channel ripecheck.pubcmd]} { return 0 }
+
+        # Grab only first arg and ignore the rest
+        set arg [string tolower [lindex [split $arg] 0]]
+
+        # Default to scanning the channel where command was issued
+        if {$arg == ""} {
+            set arg $channel
+        }
+
+        if {[validchan $arg] && [channel get $arg ripecheck]} {
+            ::ripecheck::runRipeScan $arg
+        } else {
+            ::ripecheck::notifySender $nick $channel pubRipeScan "Invalid channel or ripecheck is not enabled for '$arg'"
+        }
+    }
+
+    proc dccRipeScan { nick idx arg } {
+        if {[llength [split $arg]] != 1} {
+            ::stderreu::ripescan $idx; return 0
+        }
+        set channel [string tolower [lindex [split $arg] 0]]
+
+        if {[validchan $channel] && [channel get $channel ripecheck]} {
+            ::ripecheck::runRipeScan $channel
+        } else {
+            putdcc $idx "ripecheck: Invalid channel or ripecheck is not enabled for '$arg'"
+        }
+    }
+
+    proc runRipeScan { channel } {
+        ::ripecheck::debug "Running ripescan..."
+        foreach cnick [chanlist $channel] {
+            if {[isbotnick $cnick]} {
+                ::ripecheck::debug "Found myself ($cnick) - Ignoring"
+                continue
+            }
+            # Get IP/Host part
+            set nhost [getchanhost $cnick $channel]
+            regexp ".+@(.+)" $nhost matches iphost
+            set iphost [string tolower $iphost]
+
+            ::ripecheck::debug "Found host '$nhost' for nick '$cnick'"
+            dnslookup $iphost ::ripecheck::onJoinRouter $cnick $nhost $channel
+        }
+    }
+
     proc getNickOrHost { channel arg } {
         set arg [lindex [split $arg] 0]
 
@@ -1352,7 +1339,7 @@ namespace eval ::stderreu {
     variable helpfuncs
 
     if {![info exists ::stderreu::helpfuncs] || ![dict exists $::stderreu::helpfuncs ripecheck]} {
-        dict set ::stderreu::helpfuncs ripecheck [list ripecheck +ripetopresolv -ripetopresolv +ripetopdom -ripetopdom ripesettings ripeconfig testripecheck]
+        dict set ::stderreu::helpfuncs ripecheck [list ripecheck +ripetopresolv -ripetopresolv +ripetopdom -ripetopdom ripescan ripesettings ripeconfig testripecheck]
     }
 
     proc ripecheck { idx } {
@@ -1377,6 +1364,7 @@ namespace eval ::stderreu {
         ::stderreu::-ripetopresolv $idx
         ::stderreu::+ripetopdom $idx
         ::stderreu::-ripetopdom $idx
+        ::stderreu::ripescan $idx
         ::stderreu::ripesettings $idx
         ::stderreu::ripeconfig $idx
         ::stderreu::testripecheck $idx
@@ -1406,8 +1394,11 @@ namespace eval ::stderreu {
     }
     proc -ripetopdom { idx } {
         putidx $idx "### \002-ripetopdom <channel> <topdomain>\002"
-        putidx $idx "    Remove a top domain from the channel that you no longer"
-        putidx $idx "    wish to ban"
+        putidx $idx "    Remove a top domain from the channel that you no longer wish to ban"
+    }
+    proc ripescan { idx } {
+        putidx $idx "### \002ripescan <channel>\002"
+        putidx $idx "    Scan channel and automatically ban all hosts that match existing rules for the channel"
     }
     proc ripeconfig { idx } {
         putidx $idx "### \002ripeconfig <option> \[value\]\002"
