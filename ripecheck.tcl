@@ -280,6 +280,12 @@ namespace eval ::ripecheck {
         # Lower case channel
         set channel [string tolower $channel]
 
+        # Ignore myself
+        if {[isbotnick $nick]} {
+            ::ripecheck::debug "Found myself ($nick) - Ignoring"
+            return 1
+        }
+
         # Only run if channel is defined
         if {![channel get $channel ripecheck]} { return 1 }
 
