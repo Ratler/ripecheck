@@ -44,12 +44,15 @@
 # !ripeinfo [#channel] <nick|host>
 # !ripegeo [#channel] <nick|host>
 # !ripestatus [*|#channel]
+# !ripetld <tld>
 # !ripescan [channel]
-#
+# !ripehelp
 # Private msg commands:
 # !ripecheck <host>
 # !ripeinfo <host>
 # !ripegeo <host>
+# !ripetld <tld>
+# !ripehelp
 ###
 # Tested:
 # eggdrop v1.6.19 GNU/Linux with tcl 8.5 and tcllib 1.10
@@ -143,6 +146,8 @@ bind pub -|- !ripegeo ::ripecheck::pubRipeGeo
 bind msg -|- !ripetld ::ripecheck::msgRipeTld
 bind pub -|- !ripetld ::ripecheck::pubRipeTld
 bind pub m|o !ripescan ::ripecheck::pubRipeScan
+bind pub -|- !ripehelp ::ripecheck::pubRipeHelp
+bind msg -|- !ripehelp ::ripecheck::msgRipeHelp
 
 namespace eval ::ripecheck {
     # Global variables
@@ -777,6 +782,14 @@ namespace eval ::ripecheck {
             ::ripecheck::debug "Found host '$nhost' for nick '$cnick'"
             dnslookup $iphost ::ripecheck::onJoinRouter $cnick $nhost $channel
         }
+    }
+
+    proc pubRipeHelp { nick host handle channel arg } {
+        ::ripecheck::notifySender $nick $channel pubRipeHelp "Available commands: !ripecheck <nick|host>, !ripeinfo \[channel\] <nick|host>, !ripegeo \[channel\] <nick|host>, !ripestatus \[*|channel\], !ripetld <tld>, !ripehelp"
+    }
+
+    proc msgRipeHelp { nick host handle arg } {
+        ::ripecheck::notifySender $nick "" msgRipeHelp "Available commands: !ripecheck <host>, !ripeinfo <host>, !ripegeo <host>, !ripetld <tld>, !ripehelp"
     }
 
     proc getNickOrHost { channel arg } {
