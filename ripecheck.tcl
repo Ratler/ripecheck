@@ -59,11 +59,11 @@
 # eggdrop v1.6.19 GNU/Linux with tcl 8.5 and tcllib 1.10
 # eggdrop v1.6.20 GNU/Linux with tcl 8.5 and tcllib 1.12
 # - Known issues
-#   - There is a bug in 1.6.20 with the new notifier code
+#   - There is a known bug in 1.6.20 with the new notifier code
 #     and vwait that cause segmentation fault after running
 #     the bot for a while. Workaround right now is to disable
-#     the new code by changing #ifdef HAVE_TCL_SETNOTIFIER 1 to #undef HAVE_TCL_SETNOTIFIER
-#     in config.h and recompiling your eggdrop.
+#     the new code by changing #ifdef HAVE_TCL_SETNOTIFIER 1 to
+#     #undef HAVE_TCL_SETNOTIFIER in config.h and recompile your eggdrop.
 ###
 # BUGS?!
 # If you discover any problems please send an e-mail
