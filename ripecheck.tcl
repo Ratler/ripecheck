@@ -21,11 +21,12 @@
 # * !ripestatus [*|#channel] show settings and bancount stats for the channel
 # * Whitelist mode. Only let hosts from a country specified by the TLD list
 #   enter the channel, everyone else get banned.
-# * NEW: GeoIP from ipinfodb.com
+# * GeoIP from ipinfodb.com
 # * !ripegeo [#channel] <nick|host> to get country, region, city, latitude,
 #   longitude and google map url. Available as public and private commands.
 # * Ripecheck now support using GeoIP as primary ban method, if GeoIP fail ripecheck
 #   will automatically fall back using whois
+# * New commands: !ripetld <tld>, !ripescan [channel] and !ripehelp
 ###
 # Require / Depends:
 # TCL >= 8.5
@@ -1449,7 +1450,7 @@ namespace eval ::stderreu {
     proc ripecheckdefault { idx } {
         putidx $idx "\n\nripecheck v$::ripecheck::version commands:"
         putidx $idx "   \002+ripetopresolv    -ripetopresolv    +ripetopdom    -ripetopdom\002"
-        putidx $idx "   \002ripesettings      ripeconfig        testripecheck\002"
+        putidx $idx "   \002ripesettings      ripescan          ripeconfig     testripecheck\002"
     }
 
     proc help { hand idx arg } {
