@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.4  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.4.1  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -152,7 +152,7 @@ bind msg -|- !ripehelp ::ripecheck::msgRipeHelp
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.4"
+    variable version "3.4.1"
 
     variable ipinfodb "http://ipinfodb.com/ip_query.php?ip="
     variable maskarray
@@ -346,8 +346,10 @@ namespace eval ::ripecheck {
             }
             putlog "ripecheck: Matched country $country \[$ripe\] banning $nick!$orghost on $channel for $bantime minute(s)"
             if {![::ripecheck::isConfigEnabled logmode]} {
+                # If we get a match always use the original host or we may get fooled by DNS
+                regexp ".+@(.+)" $orghost -> realhost
                 ::ripecheck::incrBanCount $channel
-                newchanban $channel "*!*@$host" ripecheck $banreason $bantime
+                newchanban $channel "*!*@$realhost" ripecheck $banreason $bantime
             }
         }
     }
@@ -1352,9 +1354,7 @@ namespace eval ::ripecheck {
 namespace eval ::stderreu {
     variable helpfuncs
 
-    if {![info exists ::stderreu::helpfuncs] || ![dict exists $::stderreu::helpfuncs ripecheck]} {
-        dict set ::stderreu::helpfuncs ripecheck [list ripecheck +ripetopresolv -ripetopresolv +ripetopdom -ripetopdom ripescan ripesettings ripeconfig testripecheck]
-    }
+    dict set ::stderreu::helpfuncs ripecheck [list ripecheck +ripetopresolv -ripetopresolv +ripetopdom -ripetopdom ripescan ripesettings ripeconfig testripecheck]
 
     proc ripecheck { idx } {
         putidx $idx "### \002ripecheck v$::ripecheck::version\002 by Ratler ###"; putidx $idx ""
