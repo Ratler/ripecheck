@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.4.1  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.4.2-dev  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -152,7 +152,7 @@ bind msg -|- !ripehelp ::ripecheck::msgRipeHelp
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.4.1"
+    variable version "3.4.2-dev"
 
     variable ipinfodb "http://ipinfodb.com/ip_query.php?ip="
     variable maskarray
@@ -284,6 +284,8 @@ namespace eval ::ripecheck {
             return 0
         }
 
+        ::ripecheck::debug "onJoinRouter() - Ip: $ip, Iphost: $iphost, Orghost: $host"
+
         # First we try geoIP if enabled
         if {[::ripecheck::isConfigEnabled geoban]} {
             ::ripecheck::debug "Using GeoIP (geoban enabled)"
@@ -299,9 +301,10 @@ namespace eval ::ripecheck {
         }
 
         # Only run RIPE check on numeric IP unless ripecheck.topchk is enabled
-        if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
-            ::ripecheck::debug "Found numeric IP $iphost ... scanning"
-            ::ripecheck::whoisFindServer $iphost $iphost 1 $nick $channel $host ripecheck
+        regexp ".+@(.+)" $host -> orghost
+        if {[regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $orghost]} {
+            ::ripecheck::debug "Found numeric IP $orghost ... scanning"
+            ::ripecheck::whoisFindServer $orghost $orghost 1 $nick $channel $host ripecheck
         } elseif {[channel get $channel ripecheck.topchk]} {
             # Check if channel has a resolve domain list or complain about it and then abort
             if {![info exists ::ripecheck::topresolv($channel)]} {
