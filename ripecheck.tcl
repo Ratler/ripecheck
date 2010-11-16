@@ -28,6 +28,11 @@
 #   will automatically fall back using whois
 # * New commands: !ripetld <tld>, !ripescan [channel] and !ripehelp
 ###
+# Information regarding ipinfodb.com usage:
+#
+# To enable GeoIP support registration for an API key with ipinfodb.com is required.
+# Registration is free, register here: http://www.ipinfodb.com/register.php
+###
 # Require / Depends:
 # TCL >= 8.5
 # tcllib >= 1.10  (http://www.tcl.tk/software/tcllib/)
@@ -154,7 +159,7 @@ namespace eval ::ripecheck {
     # Global variables
     variable version "3.4.3-dev"
 
-    variable ipinfodb "http://ipinfodb.com/ip_query.php?ip="
+    variable ipinfodb "http://api.ipinfodb.com/v2/ip_query.php?"
     variable maskarray
     variable chanarr
     variable topresolv
@@ -410,7 +415,12 @@ namespace eval ::ripecheck {
 
     # Return ipinfodb data
     proc getGeoData { ip } {
-        set httpData [::ripecheck::getHttpData $::ripecheck::ipinfodb$ip]
+        # Check if API key have been set
+        if {![info exists ::ripecheck::config(ipinfodbkey)]} {
+            return [dict set status Status "API key for ipinfodb.com not set!"]
+        }
+
+        set httpData [::ripecheck::getHttpData "${::ripecheck::ipinfodb}key=${::ripecheck::config(ipinfodbkey)}&ip=$ip&timezone=false"]
         if {[dict get $httpData status] != "ok"} {
             return [dict set status Status [dict get $httpData status]]
         }
@@ -1151,7 +1161,7 @@ namespace eval ::ripecheck {
         }
 
         # Allowed string options
-        set allowed_str_opts [list banreason bantopreason]
+        set allowed_str_opts [list banreason bantopreason ipinfodbkey]
 
         # Allowed boolean options
         set allowed_bool_opts [list msgcmds fallback geoban logmode]
@@ -1430,6 +1440,8 @@ namespace eval ::stderreu {
         putidx $idx "                             This function will _try_ to detect country for an host where the whois server"
         putidx $idx "                             only return a few NET-XXX-XXX-XXX-XXX entries."
         putidx $idx "                             The intention is to replace lastResortMask."
+        putidx $idx "     ipinfodbkey \[apikey\]  : Set ipinfodb.com API key."
+        putidx $idx "                             Register with ipinfodb.com to recieve a FREE API key: http://www.ipinfodb.com/register.php"
         putidx $idx "    \002Examples\002:"
         putidx $idx "     TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
         putidx $idx "     Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
