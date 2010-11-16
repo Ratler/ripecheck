@@ -939,23 +939,23 @@ namespace eval ::ripecheck {
                         dict set whoisData Owner $data
                     } elseif {[dict get $whoisData MntBy] == "" && [regexp -line -nocase {(?:ownerid|mnt-by):\s*(.*)} $row -> data]} {
                         dict set whoisData MntBy $data
-                    } elseif {[regexp -line -nocase {(?:Auth-Area|inetnum):\s*(.*)} $row -> data]} {
+                    } elseif {[regexp -line -nocase {(?:Auth-Area|inetnum|NetRange):\s*(.*)} $row -> data]} {
                         dict set whoisData InetNum $data
                     } elseif {[regexp -line -nocase {origin:\s*(.*)} $row -> data]} {
                         dict set whoisData Asn $data
-                    } elseif {[regexp -line -nocase {Org-Name:\s*(.*)} $row -> data]} {
+                    } elseif {[regexp -line -nocase {(?:Org-Name|OrgName):\s*(.*)} $row -> data]} {
                         dict set whoisData OrgName $data
-                    } elseif {[regexp -line -nocase {Street-Address:\s*(.*)} $row -> data]} {
+                    } elseif {[regexp -line -nocase {(?:Street-Address|Address):\s*(.*)} $row -> data]} {
                         dict set whoisData StreetAddress $data
                     } elseif {[regexp -line -nocase {City:\s*(.*)} $row -> data]} {
                         dict set whoisData City $data
-                    } elseif {[regexp -line -nocase {Postal-Code:\s*(.*)} $row -> data]} {
+                    } elseif {[regexp -line -nocase {(?:Postal-Code|PostalCode):\s*(.*)} $row -> data]} {
                         dict set whoisData PostalCode $data
-                    } elseif {[regexp -line -nocase {State-Prov:\s*(.*)} $row -> data]} {
+                    } elseif {[regexp -line -nocase {(?:State-Prov|StateProv):\s*(.*)} $row -> data]} {
                         dict set whoisData StateProv $data
-                    } elseif {[regexp -line -nocase {Abuse-Phone:\s*(.*)} $row -> data]} {
+                    } elseif {[regexp -line -nocase {(?:Abuse-Phone|OrgAbusePhone):\s*(.*)} $row -> data]} {
                         dict set whoisData AbusePhone $data
-                    } elseif {[dict get $whoisData AbuseMail] == "" && [regexp -line -nocase {(?:Abuse-Email|abuse-mailbox|e-mail):\s*(.*)} $row -> data]} {
+                    } elseif {[dict get $whoisData AbuseMail] == "" && [regexp -line -nocase {(?:Abuse-Email|abuse-mailbox|e-mail|OrgAbuseEmail):\s*(.*)} $row -> data]} {
                         dict set whoisData AbuseMail [string tolower $data]
                     }
 
