@@ -421,7 +421,9 @@ namespace eval ::ripecheck {
         }
 
         set httpData [::ripecheck::getHttpData "${::ripecheck::ipinfodb}key=${::ripecheck::config(ipinfodbkey)}&ip=$ip&timezone=false"]
-        if {[dict get $httpData status] != "ok"} {
+        if {![dict exists $httpData status]} {
+            return [dict set status Status "Unknown HTTP error occured!"]
+        } elseif {[dict get $httpData status] != "ok"} {
             return [dict set status Status [dict get $httpData status]]
         }
 
