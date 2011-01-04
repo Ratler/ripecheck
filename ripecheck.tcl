@@ -766,7 +766,9 @@ namespace eval ::ripecheck {
         }
 
         if {[validchan $arg] && [channel get $arg ripecheck]} {
+            ::ripecheck::notifySender $nick $channel pubRipeScan "Scanning $arg, please wait..."
             ::ripecheck::runRipeScan $arg
+            ::ripecheck::notifySender $nick $channel pubRipeScan "...scan complete."
         } else {
             ::ripecheck::notifySender $nick $channel pubRipeScan "Invalid channel or ripecheck is not enabled for '$arg'"
         }
