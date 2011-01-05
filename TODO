@@ -1,3 +1,4 @@
 - Create a better method of saving data
 - Add caching for whois queries? (Probably good for big channels)
 - Add IPV6 support
+- Add manual override for net masks
