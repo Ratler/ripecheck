@@ -1001,15 +1001,9 @@ namespace eval ::ripecheck {
 
             # Experimental feature that might replace lastResortMasks in the future
             if {[::ripecheck::isConfigEnabled fallback] && ![dict exists $whoisData Country] && [dict exists $whoisData fallback]} {
-                ::ripecheck::debug "Using fallback method (EXPERIMENTAL) for '[dict get $whoisData fallback]' original host was $host ($ip)"
+                ::ripecheck::debug "Using fallback method for '[dict get $whoisData fallback]' original host was $host ($ip)"
                 ::ripecheck::whoisConnect [dict get $whoisData fallback] $host $nick $channel $orghost $whoisdb 43 $rtype
                 return 1
-            }
-
-            # Last resort, check if we get a match from hardcoded netmasks
-            if {![dict exists $whoisData Country] && [::ripecheck::lastResortMasks $ip] != ""} {
-                dict set whoisdata Country [::ripecheck::lastResortMasks $ip]
-                ::ripecheck::debug "Got '[dict get $whoisData Country]' from lastResortMasks"
             }
 
             if {[dict exists $whoisData Country]} {
@@ -1274,26 +1268,6 @@ namespace eval ::ripecheck {
         }
     }
 
-    # Define whois overrides for netmasks with incomplete records
-    proc lastResortMasks { ip } {
-        set masks(24.16.0.0/13) "us"
-        set masks(24.239.32.0/19) "us"
-        set masks(208.151.241.0/24) "us"
-        set masks(208.151.242.0/23) "us"
-        set masks(208.151.244.0/22) "us"
-        set masks(208.151.248.0/21) "us"
-
-        # Create a list from the masks array
-        foreach mask [array names masks] {
-            lappend masklist $mask
-        }
-
-        set matchmask [::ip::longestPrefixMatch $ip $masklist]
-        if {$matchmask != ""} {
-            return $masks($matchmask)
-        }
-    }
-
     # Return a country based on tld or return "" if no country is found
     proc getCountry { tld } {
         if {[array size ::ripecheck::tldtocountry] > 0 && [info exists ::ripecheck::tldtocountry($tld)]} {
@@ -1428,10 +1402,8 @@ namespace eval ::stderreu {
         putidx $idx "     geoban \[on|off\]       : Enable or disable GeoIP data as primary method of banning, whois will be used"
         putidx $idx "                             as fallback"
         putidx $idx "     logmode \[on|off\]      : Enable or disable log only mode, this will disable channel bans and kick counter."
-        putidx $idx "     fallback \[on|off\]     : \002EXPERIMENTAL!!! Use with caution!\002"
-        putidx $idx "                             This function will _try_ to detect country for an host where the whois server"
+        putidx $idx "     fallback \[on|off\]     : This function will _try_ to detect country for an host where the whois server"
         putidx $idx "                             only return a few NET-XXX-XXX-XXX-XXX entries."
-        putidx $idx "                             The intention is to replace lastResortMask."
         putidx $idx "     ipinfodbkey \[apikey\]  : Set ipinfodb.com API key."
         putidx $idx "                             Register with ipinfodb.com to recieve a FREE API key: http://www.ipinfodb.com/register.php"
         putidx $idx "    \002Examples\002:"
