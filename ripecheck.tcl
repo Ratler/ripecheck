@@ -26,7 +26,7 @@
 #   longitude and google map url. Available as public and private commands.
 # * Ripecheck now support using GeoIP as primary ban method, if GeoIP fail ripecheck
 #   will automatically fall back using whois
-# * New commands: !ripetld <tld>, !ripescan [channel] and !ripehelp
+# * !ripetld <tld>, !ripescan [channel] and !ripehelp
 ###
 # Information regarding ipinfodb.com usage:
 #
@@ -1066,18 +1066,15 @@ namespace eval ::ripecheck {
                 # If data exist extract into a list
                 if {[info exists ::ripecheck::topresolv($channel)]} {
                     ::ripecheck::debug "topresolv exists"
-                    set dlist $::ripecheck::topresolv($channel)
                     # top domain doesn't exist so lets add it
-                    if {[lsearch -exact $dlist $topdom] == -1 } {
-                        lappend dlist $topdom
-                        set ::ripecheck::topresolv($channel) $dlist
+                    if {[lsearch -exact $::ripecheck::topresolv($channel) $topdom] == -1 } {
+                        lappend ::ripecheck::topresolv($channel) $topdom
                     } else {
                         putdcc $idx "\002RIPECHECK\002: Resolve domain '$topdom' already exist on $channel"; return 0
                     }
                 } else {
                     ::ripecheck::debug "topresolv doesn't exist"
-                    set dlist [list $topdom]
-                    set ::ripecheck::topresolv($channel) $dlist
+                    set ::ripecheck::topresolv($channel) [list $topdom]
                 }
                 # Write to the ripecheck channel file
                 ::ripecheck::writeSettings
@@ -1104,15 +1101,12 @@ namespace eval ::ripecheck {
         if {[validchan $channel]} {
             if {[info exists ::ripecheck::topresolv($channel)]} {
                 ::ripecheck::debug "topresolv($channel) exists"
-                set dlist $::ripecheck::topresolv($channel)
-                # resolve domain exist so lets remove it
-                set dlist_index [lsearch -exact $dlist $topdom]
+                 # resolve domain exist so lets remove it
+                set dlist_index [lsearch -exact $::ripecheck::topresolv($channel) $topdom]
                 if {$dlist_index != -1 } {
-                    set dlist [lreplace $dlist $dlist_index $dlist_index]
+                    set ::ripecheck::topresolv($channel) [lreplace $::ripecheck::topresolv($channel) $dlist_index $dlist_index]
                     # More magic, lets clear array if the list is empty
-                    if {[llength $dlist] > 0} {
-                        set ::ripecheck::topresolv($channel) $dlist
-                    } else {
+                    if {![llength $::ripecheck::topresolv($channel)] > 0} {
                         unset ::ripecheck::topresolv($channel)
                     }
                 } else {
@@ -1224,18 +1218,15 @@ namespace eval ::ripecheck {
             # If data exist extract into a list
             if {[info exists ::ripecheck::chanarr($channel)]} {
                 ::ripecheck::debug "chanarr exists"
-                set dlist $::ripecheck::chanarr($channel)
                 # top domain doesn't exist so lets add it
-                if {[lsearch -exact $dlist $topdom] == -1 } {
-                    lappend dlist $topdom
-                    set ::ripecheck::chanarr($channel) $dlist
+                if {[lsearch -exact $::ripecheck::chanarr($channel) $topdom] == -1 } {
+                    lappend ::ripecheck::chanarr($channel) $topdom
                 } else {
                     putdcc $idx "\002RIPECHECK\002: Domain '$topdom' already exist on $channel"; return 0
                 }
             } else {
                 ::ripecheck::debug "chanarr doesn't exist"
-                set dlist [list $topdom]
-                set ::ripecheck::chanarr($channel) $dlist
+                set ::ripecheck::chanarr($channel) [list $topdom]
             }
             # Write to the ripecheck channel file
             ::ripecheck::writeSettings
@@ -1259,15 +1250,12 @@ namespace eval ::ripecheck {
         if {[validchan $channel]} {
             if {[info exists ::ripecheck::chanarr($channel)]} {
                 ::ripecheck::debug "chanarr($channel) exists"
-                set dlist $::ripecheck::chanarr($channel)
                 # top domain doesn't exist so lets add it
-                set dlist_index [lsearch -exact $dlist $topdom]
+                set dlist_index [lsearch -exact $::ripecheck::chanarr($channel) $topdom]
                 if {$dlist_index != -1 } {
-                    set dlist [lreplace $dlist $dlist_index $dlist_index]
+                    set ::ripecheck::chanarr($channel) [lreplace $::ripecheck::chanarr($channel) $dlist_index $dlist_index]
                     # More magic, clear array if list is empty
-                    if {[llength $dlist] > 0} {
-                        set ::ripecheck::chanarr($channel) $dlist
-                    } else {
+                    if {![llength $::ripecheck::chanarr($channel)] > 0} {
                         unset ::ripecheck::chanarr($channel)
                     }
                 } else {
