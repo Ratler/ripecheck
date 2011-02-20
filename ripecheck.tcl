@@ -160,6 +160,7 @@ namespace eval ::ripecheck {
     variable version "3.5-dev"
 
     variable ipinfodb "http://api.ipinfodb.com/v2/ip_query.php?"
+    variable geotool "http://geotool.stderr.eu/api"
     variable maskarray
     variable chanarr
     variable topresolv
@@ -293,9 +294,15 @@ namespace eval ::ripecheck {
 
         # First we try geoIP if enabled
         if {[::ripecheck::isConfigEnabled geoban]} {
-            ::ripecheck::debug "Using GeoIP (geoban enabled)"
+            if {![info exists ::ripecheck::config(geobackend)]} {
+                set backend "Geotool"
+            } else {
+                set backend $::ripecheck::config(geobackend)
+            }
 
-            set geoData [::ripecheck::getGeoData $ip]
+            ::ripecheck::debug "Geoban enabled, using backend '$backend'"
+
+            set geoData [::ripecheck::getGeoData $ip "country"]
 
             if {[dict get $geoData Status] == "OK" && [dict get $geoData CountryName] != "Reserved"} {
                 ::ripecheck::debug "Using GeoIP CountryCode: [dict get $geoData CountryCode]"
@@ -413,8 +420,68 @@ namespace eval ::ripecheck {
         return $httpData
     }
 
+    proc getGeoToolCity { ip } {
+        set httpData [::ripecheck::getHttpData "${::ripecheck::geotool}/city/$ip"]
+        if {![dict exists $httpData status]} {
+            return [dict set status Status "Unknown HTTP error occured!"]
+        } elseif {[dict get $httpData status] != "ok"} {
+            return [dict set status Status [dict get $httpData status]]
+        }
+
+        regexp {(?i)<Status>([^<>]+)} [dict get $httpData data] -> geoData(Status)
+        dict set geoDict Status $geoData(Status)
+
+        # If status ok parse the rest
+        if {$geoData(Status) == "OK"} {
+            foreach tag [list "Ip" "CountryCode" "CountryName" "City" "Latitude" "Longitude"] {
+                regexp "(?i)<$tag>(\[^<>\]+)" [dict get $httpData data] -> geoData($tag)
+
+                # Set blank if regexp fail to get value or if value is empty
+                if {![info exists geoData($tag)]} {
+                    set geoData($tag) ""
+                }
+                if {$tag == "CountryName" && [info exists geoData(CountryCode)]} {
+                    set geoData($tag) "$geoData($tag) \[$geoData(CountryCode)\]"
+                }
+                dict set geoDict $tag $geoData($tag)
+            }
+
+            # To comply with output format of ipinfodb we set regionname blank
+            dict set geoDict RegionName ""
+        }
+
+        return $geoDict
+    }
+
+    proc getGeoToolCountry { ip } {
+        set httpData [::ripecheck::getHttpData "${::ripecheck::geotool}/country/$ip"]
+        if {![dict exists $httpData status]} {
+            return [dict set status Status "Unknown HTTP error occured!"]
+        } elseif {[dict get $httpData status] != "ok"} {
+            return [dict set status Status [dict get $httpData status]]
+        }
+
+        regexp {(?i)<Status>([^<>]+)} [dict get $httpData data] -> geoData(Status)
+        dict set geoDict Status $geoData(Status)
+
+        # If status ok parse the rest
+        if {$geoData(Status) == "OK"} {
+            foreach tag [list "Ip" "CountryCode" "CountryName"] {
+                regexp "(?i)<$tag>(\[^<>\]+)" [dict get $httpData data] -> geoData($tag)
+
+                # Set blank if regexp fail to get value or if value is empty
+                if {![info exists geoData($tag)]} {
+                    set geoData($tag) ""
+                }
+                dict set geoDict $tag $geoData($tag)
+            }
+        }
+
+        return $geoDict
+    }
+
     # Return ipinfodb data
-    proc getGeoData { ip } {
+    proc getIpinfodbData { ip } {
         # Check if API key have been set
         if {![info exists ::ripecheck::config(ipinfodbkey)]} {
             return [dict set status Status "API key for ipinfodb.com not set!"]
@@ -448,6 +515,24 @@ namespace eval ::ripecheck {
         }
 
         return $geoDict
+    }
+
+    proc getGeoData { ip args } {
+        if {![info exists ::ripecheck::config(geobackend)]} {
+            set backend "geotool"
+        } else {
+            set backend $::ripecheck::config(geobackend)
+        }
+
+        ::ripecheck::debug "getGeoData() - Using geo backend $backend"
+
+        if {$backend == "ipinfodb"} {
+            return [::ripecheck::getIpinfodbData $ip]
+        } elseif {[info exists args] && $args == "country"} {
+            return [::ripecheck::getGeoToolCountry $ip]
+        } else {
+            return [::ripecheck::getGeoToolCity $ip]
+        }
     }
 
     proc test { nick idx arg } {
@@ -1153,7 +1238,7 @@ namespace eval ::ripecheck {
         }
 
         # Allowed string options
-        set allowed_str_opts [list banreason bantopreason ipinfodbkey]
+        set allowed_str_opts [list banreason bantopreason ipinfodbkey geobackend]
 
         # Allowed boolean options
         set allowed_bool_opts [list msgcmds fallback geoban logmode]
@@ -1164,7 +1249,15 @@ namespace eval ::ripecheck {
 
         # Check option type
         if {[lsearch -exact $allowed_str_opts $option] != -1} {
-            if {$value != ""} {
+            if {$option == "geobackend" && $value != ""} {
+                if {$value == "geotool" || $value == "ipinfodb"} {
+                    set ::ripecheck::config($option) $value
+                    putdcc $idx "\002RIPECHECK\002: Option '$option' set with the value '$value'"
+                } else {
+                    putdcc $idx "\002RIPECHECK\002: Invalid backend type, valid backends are: geotool, ipinfodb"
+                    return 0
+                }
+            } elseif {$value != ""} {
                 set ::ripecheck::config($option) $value
                 putdcc $idx "\002RIPECHECK\002: Option '$option' set with the value '$value'"
             } else {
@@ -1401,6 +1494,8 @@ namespace eval ::stderreu {
         putidx $idx "     msgcmds \[on|off\]      : Enable or disable commands through private message"
         putidx $idx "     geoban \[on|off\]       : Enable or disable GeoIP data as primary method of banning, whois will be used"
         putidx $idx "                             as fallback"
+        putidx $idx "     geobackend \[string\]   : Set preferred geodata backend, supported backends are geotool and ipinfodb."
+        putidx $idx "                             Default is geotool."
         putidx $idx "     logmode \[on|off\]      : Enable or disable log only mode, this will disable channel bans and kick counter."
         putidx $idx "     fallback \[on|off\]     : This function will _try_ to detect country for an host where the whois server"
         putidx $idx "                             only return a few NET-XXX-XXX-XXX-XXX entries."
