@@ -27,6 +27,7 @@
 # * Ripecheck now support using GeoIP as primary ban method, if GeoIP fail ripecheck
 #   will automatically fall back using whois
 # * !ripetld <tld>, !ripescan [channel] and !ripehelp
+# * Support for two GeoIP backends, geotool and ipinfodb. Defaults to geotool.
 ###
 # Information regarding ipinfodb.com usage:
 #
@@ -294,13 +295,7 @@ namespace eval ::ripecheck {
 
         # First we try geoIP if enabled
         if {[::ripecheck::isConfigEnabled geoban]} {
-            if {![info exists ::ripecheck::config(geobackend)]} {
-                set backend "Geotool"
-            } else {
-                set backend $::ripecheck::config(geobackend)
-            }
-
-            ::ripecheck::debug "Geoban enabled, using backend '$backend'"
+            ::ripecheck::debug "Geoban enabled"
 
             set geoData [::ripecheck::getGeoData $ip "country"]
 
@@ -524,7 +519,7 @@ namespace eval ::ripecheck {
             set backend $::ripecheck::config(geobackend)
         }
 
-        ::ripecheck::debug "getGeoData() - Using geo backend $backend"
+        ::ripecheck::debug "getGeoData() - Using '$backend' backend"
 
         if {$backend == "ipinfodb"} {
             return [::ripecheck::getIpinfodbData $ip]
@@ -1250,6 +1245,7 @@ namespace eval ::ripecheck {
         # Check option type
         if {[lsearch -exact $allowed_str_opts $option] != -1} {
             if {$option == "geobackend" && $value != ""} {
+                set value [string tolower $value]
                 if {$value == "geotool" || $value == "ipinfodb"} {
                     set ::ripecheck::config($option) $value
                     putdcc $idx "\002RIPECHECK\002: Option '$option' set with the value '$value'"
@@ -1494,7 +1490,7 @@ namespace eval ::stderreu {
         putidx $idx "     msgcmds \[on|off\]      : Enable or disable commands through private message"
         putidx $idx "     geoban \[on|off\]       : Enable or disable GeoIP data as primary method of banning, whois will be used"
         putidx $idx "                             as fallback"
-        putidx $idx "     geobackend \[string\]   : Set preferred geodata backend, supported backends are geotool and ipinfodb."
+        putidx $idx "     geobackend \[string\]   : Set preferred GeoIP backend, supported backends are geotool and ipinfodb."
         putidx $idx "                             Default is geotool."
         putidx $idx "     logmode \[on|off\]      : Enable or disable log only mode, this will disable channel bans and kick counter."
         putidx $idx "     fallback \[on|off\]     : This function will _try_ to detect country for an host where the whois server"
