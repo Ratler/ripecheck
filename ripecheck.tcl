@@ -28,6 +28,10 @@
 #   will automatically fall back using whois
 # * !ripetld <tld>, !ripescan [channel] and !ripehelp
 # * Support for two GeoIP backends, geotool and ipinfodb. Defaults to geotool.
+# * New function to exclude hosts from being scanned using regexp matching. Useful for
+#   networks like UnderNET or other networks that use host hiding. A DNS may automatically
+#   resolve unresolable hosts giving a false positive. See help .ripeconfig.
+#
 ###
 # Information regarding ipinfodb.com usage:
 #
@@ -255,6 +259,15 @@ namespace eval ::ripecheck {
         # Get IP/Host part
         regexp ".+@(.+)" $host matches iphost
         set iphost [string tolower $iphost]
+
+        # Exclude following hostregexps from being scanned
+        foreach hostRegexp $::ripecheck::config(exclhost) {
+            ::ripecheck::debug "Testing exclude host regexp '$hostRegexp' for host '$iphost'"
+            if {[regexp "$hostRegexp" $iphost]} {
+                ::ripecheck::debug "Exclude host regexp '$hostRegexp' matched for host '$iphost'. No further action taken. "
+                return 1
+            }
+        }
 
         # Top domain ban if enabled
         if {[channel get $channel ripecheck.topban] && ![regexp {[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}$} $iphost]} {
@@ -1222,7 +1235,11 @@ namespace eval ::ripecheck {
             putdcc $idx "### No channel settings exist."
         }
         foreach option [array names ::ripecheck::config] {
-            putdcc $idx "### \002$option:\002 $::ripecheck::config($option)"
+            if {$option == "exclhost"} {
+                putdcc $idx "### \002$option:\002 [join $::ripecheck::config($option) ", "]"
+            } else {
+                putdcc $idx "### \002$option:\002 $::ripecheck::config($option)"
+            }
         }
     }
 
@@ -1233,7 +1250,7 @@ namespace eval ::ripecheck {
         }
 
         # Allowed string options
-        set allowed_str_opts [list banreason bantopreason ipinfodbkey geobackend]
+        set allowed_str_opts [list banreason bantopreason ipinfodbkey geobackend exclhost]
 
         # Allowed boolean options
         set allowed_bool_opts [list msgcmds fallback geoban logmode]
@@ -1252,6 +1269,49 @@ namespace eval ::ripecheck {
                 } else {
                     putdcc $idx "\002RIPECHECK\002: Invalid backend type, valid backends are: geotool, ipinfodb"
                     return 0
+                }
+            } elseif {$option == "exclhost"} {
+                if {[llength [split $value]] > 0} {
+                    set action [lindex [split $value] 0]
+                    set data [lindex [split $value] 1]
+
+                    ::ripecheck::debug "$option - $action - $data"
+
+                    switch -- $action {
+                        add {
+                            if {([info exists ::ripecheck::config(exclhost)] && [lsearch -exact $::ripecheck::config(exclhost) $data] == -1) || ![info exists ::ripecheck::config(exclhost)]} {
+                                lappend ::ripecheck::config(exclhost) $data
+                                putdcc $idx "\002RIPECHECK\002: '$data' added to the exclude host list."
+                            } else {
+                                putdcc $idx "\002RIPECHECK\002: '$data' already exist in the exclude host list."
+                            }
+                        }
+                        del {
+                            if {[info exists ::ripecheck::config(exclhost)]} {
+                                set listIndex [lsearch -exact $::ripecheck::config(exclhost) $data]
+                                if {$listIndex != -1} {
+                                    set ::ripecheck::config(exclhost) [lreplace $::ripecheck::config(exclhost) $listIndex $listIndex]
+                                    putdcc $idx "\002RIPECHECK\002: '$data' removed from the exclude host list."
+                                } else {
+                                    putdcc $idx "\002RIPECHECK\002: '$data' doesn't exist in the exclude host list."
+                                }
+                            }
+                        }
+                        list {
+                            if {[info exists ::ripecheck::config(exclhost)]} {
+                                set hostlist [join $::ripecheck::config(exclhost) ", "]
+                                putdcc $idx "\002RIPECHECK\002: Excluded hosts: $hostlist"
+                            } else {
+                                putdcc $idx "\002RIPECHECK\002: No excluded hosts set."
+                            }
+                        }
+                        default {
+                            putdcc $idx "\002RIPECHECK\002: Unknown action '$action'"
+                            ::stderreu::ripeconfig $idx
+                        }
+                    }
+                } else {
+                    putdcc $idx "\002RIPECHECK\002: Missing argument. Valid arguments \[add|del|list\] <regexp>"
                 }
             } elseif {$value != ""} {
                 set ::ripecheck::config($option) $value
@@ -1485,23 +1545,27 @@ namespace eval ::stderreu {
     proc ripeconfig { idx } {
         putidx $idx "### \002ripeconfig <option> \[value\]\002"
         putidx $idx "    \002Options\002:"
-        putidx $idx "     banreason \[string\]    : Set custom ban reason, support substitutional keywords, see below"
-        putidx $idx "     bantopreason \[string\] : Set custom TLD ban reason, support substitutional keywords, see below"
-        putidx $idx "     msgcmds \[on|off\]      : Enable or disable commands through private message"
-        putidx $idx "     geoban \[on|off\]       : Enable or disable GeoIP data as primary method of banning, whois will be used"
-        putidx $idx "                             as fallback"
-        putidx $idx "     geobackend \[string\]   : Set preferred GeoIP backend, supported backends are geotool and ipinfodb."
-        putidx $idx "                             Default is geotool."
-        putidx $idx "     logmode \[on|off\]      : Enable or disable log only mode, this will disable channel bans and kick counter."
-        putidx $idx "     fallback \[on|off\]     : This function will _try_ to detect country for an host where the whois server"
-        putidx $idx "                             only return a few NET-XXX-XXX-XXX-XXX entries."
-        putidx $idx "     ipinfodbkey \[apikey\]  : Set ipinfodb.com API key."
-        putidx $idx "                             Register with ipinfodb.com to recieve a FREE API key: http://www.ipinfodb.com/register.php"
+        putidx $idx "     banreason \[string\]          : Set custom ban reason, support substitutional keywords, see below"
+        putidx $idx "     bantopreason \[string\]       : Set custom TLD ban reason, support substitutional keywords, see below"
+        putidx $idx "     msgcmds \[on|off\]            : Enable or disable commands through private message"
+        putidx $idx "     geoban \[on|off\]             : Enable or disable GeoIP data as primary method of banning, whois will be used"
+        putidx $idx "                                   as fallback"
+        putidx $idx "     geobackend \[string\]         : Set preferred GeoIP backend, supported backends are geotool and ipinfodb."
+        putidx $idx "                                   Default is geotool."
+        putidx $idx "     logmode \[on|off\]            : Enable or disable log only mode, this will disable channel bans and kick counter."
+        putidx $idx "     fallback \[on|off\]           : This function will _try_ to detect country for an host where the whois server"
+        putidx $idx "                                   only return a few NET-XXX-XXX-XXX-XXX entries."
+        putidx $idx "     ipinfodbkey \[apikey\]        : Set ipinfodb.com API key."
+        putidx $idx "                                   Register with ipinfodb.com to recieve a FREE API key: http://www.ipinfodb.com/register.php"
+        putidx $idx "     exclhost <action> <regexp>  : Stop ripecheck from processing any host matching set regular expressions."
+        putidx $idx "                                   Valid actions are add, del, list"
         putidx $idx "    \002Examples\002:"
         putidx $idx "     TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
         putidx $idx "     Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
         putidx $idx "     Enable msgcmds: .ripeconfig msgcmds on"
         putidx $idx "     Disable msgcmds: .ripeconfig msgcmds off"
+        putidx $idx "     Regexp to ignore hosts: .ripeconfig exclhost add (?i)^.*.users.undernet.org\$"
+        putidx $idx "     This regexp would match hosts not resolvable on UnderNET, when using (?i) the match is done with no case."
         putidx $idx "    \002Substitutional keywords, current keywords are\002:"
         putidx $idx "     %tld% = Top level domain, ie .us, .se, .no"
         putidx $idx "     %country% = Country name"
