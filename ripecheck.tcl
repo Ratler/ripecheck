@@ -280,7 +280,9 @@ namespace eval ::ripecheck {
                                    %tld% $htopdom \
                                    %country% $country]
                 set bantime [channel get $channel ripecheck.bantime]
-                if {[info exists ::ripecheck::config(bantopreason)]} {
+                if {[info exists ::ripecheck::config(bantopreason!$htopdom)]} {
+                    set banreason [::ripecheck::templateReplace $::ripecheck::config(bantopreason!$htopdom) $template]
+                } elseif {[info exists ::ripecheck::config(bantopreason)]} {
                     set banreason [::ripecheck::templateReplace $::ripecheck::config(bantopreason) $template]
                 } else {
                     set banreason "RIPE Country Check: Top domain .$htopdom is banned."
@@ -362,7 +364,9 @@ namespace eval ::ripecheck {
                                %ripe% $ripe \
                                %tld% $ripe \
                                %country% $country]
-            if {[info exists ::ripecheck::config(banreason)]} {
+            if {[info exists ::ripecheck::config(banreason!$ripe]} {
+                set banreason [::ripecheck::templateReplace $::ripecheck::config(banreason!$ripe) $template]
+            } elseif {[info exists ::ripecheck::config(banreason)]} {
                 set banreason [::ripecheck::templateReplace $::ripecheck::config(banreason) $template]
             } else {
                 set banreason "RIPE Country Check: Matched $country \[$ripe\]"
@@ -1234,9 +1238,13 @@ namespace eval ::ripecheck {
         } else {
             putdcc $idx "### No channel settings exist."
         }
-        foreach option [array names ::ripecheck::config] {
+        foreach option [lsort [array names ::ripecheck::config]] {
             if {$option == "exclhost"} {
                 putdcc $idx "### \002$option:\002 [join $::ripecheck::config($option) ", "]"
+            } elseif {[regexp {^banreason\!} $option] || [regexp {^bantopreason\!} $option]} {
+                set tld [lindex [split $option !] 1]
+                set option [lindex [split $option !] 0]
+                putdcc $idx "### \002$option \[$tld\]:\002 $::ripecheck::config($option!$tld)"
             } else {
                 putdcc $idx "### \002$option:\002 $::ripecheck::config($option)"
             }
@@ -1312,6 +1320,29 @@ namespace eval ::ripecheck {
                     }
                 } else {
                     putdcc $idx "\002RIPECHECK\002: Missing argument. Valid arguments \[add|del|list\] <regexp>"
+                }
+            } elseif {$option == "banreason" || $option == "bantopreason"} {
+                set tld [lindex [split $value] 0]
+                if {[regexp {^\.} $tld]} {
+                    set tld [string tolower [lindex [split $tld "."] 1]]
+                    set value [lrange [split $value] 1 end]
+                    if {$value != ""} {
+                        set ::ripecheck::config($option!$tld) $value
+                        putdcc $idx "\002RIPECHECK\002: Option '$option \[$tld\]' set with the value '$value'"
+                    } else {
+                        if {[info exists ::ripecheck::config($option!$tld)]} {
+                            unset ::ripecheck::config($option!$tld)
+                        }
+                        putdcc $idx "\002RIPECHECK\002: Option '$option \[$tld\]' unset"
+                    }
+                } elseif {$value != ""} {
+                    set ::ripecheck::config($option) $value
+                    putdcc $idx "\002RIPECHECK\002: Option '$option' set with the value '$value'"
+                } else {
+                    if {[info exists ::ripecheck::config($option)]} {
+                        unset ::ripecheck::config($option)
+                    }
+                    putdcc $idx "\002RIPECHECK\002: Option '$option' unset"
                 }
             } elseif {$value != ""} {
                 set ::ripecheck::config($option) $value
@@ -1545,23 +1576,24 @@ namespace eval ::stderreu {
     proc ripeconfig { idx } {
         putidx $idx "### \002ripeconfig <option> \[value\]\002"
         putidx $idx "    \002Options\002:"
-        putidx $idx "     banreason \[string\]          : Set custom ban reason, support substitutional keywords, see below"
-        putidx $idx "     bantopreason \[string\]       : Set custom TLD ban reason, support substitutional keywords, see below"
-        putidx $idx "     msgcmds \[on|off\]            : Enable or disable commands through private message"
-        putidx $idx "     geoban \[on|off\]             : Enable or disable GeoIP data as primary method of banning, whois will be used"
-        putidx $idx "                                   as fallback"
-        putidx $idx "     geobackend \[string\]         : Set preferred GeoIP backend, supported backends are geotool and ipinfodb."
-        putidx $idx "                                   Default is geotool."
-        putidx $idx "     logmode \[on|off\]            : Enable or disable log only mode, this will disable channel bans and kick counter."
-        putidx $idx "     fallback \[on|off\]           : This function will _try_ to detect country for an host where the whois server"
-        putidx $idx "                                   only return a few NET-XXX-XXX-XXX-XXX entries."
-        putidx $idx "     ipinfodbkey \[apikey\]        : Set ipinfodb.com API key."
-        putidx $idx "                                   Register with ipinfodb.com to recieve a FREE API key: http://www.ipinfodb.com/register.php"
-        putidx $idx "     exclhost <action> <regexp>  : Stop ripecheck from processing any host matching set regular expressions."
-        putidx $idx "                                   Valid actions are add, del, list"
+        putidx $idx "     banreason \[.tld\] \[string\]    : Set custom ban reason, support substitutional keywords, see below"
+        putidx $idx "     bantopreason \[.tld\] \[string\] : Set custom TLD ban reason, support substitutional keywords, see below"
+        putidx $idx "     msgcmds \[on|off\]             : Enable or disable commands through private message"
+        putidx $idx "     geoban \[on|off\]              : Enable or disable GeoIP data as primary method of banning, whois will be used"
+        putidx $idx "                                    as fallback"
+        putidx $idx "     geobackend \[string\]          : Set preferred GeoIP backend, supported backends are geotool and ipinfodb."
+        putidx $idx "                                    Default is geotool."
+        putidx $idx "     logmode \[on|off\]             : Enable or disable log only mode, this will disable channel bans and kick counter."
+        putidx $idx "     fallback \[on|off\]            : This function will _try_ to detect country for an host where the whois server"
+        putidx $idx "                                    only return a few NET-XXX-XXX-XXX-XXX entries."
+        putidx $idx "     ipinfodbkey \[apikey\]         : Set ipinfodb.com API key."
+        putidx $idx "                                    Register with ipinfodb.com to recieve a FREE API key: http://www.ipinfodb.com/register.php"
+        putidx $idx "     exclhost <action> <regexp>   : Stop ripecheck from processing any host matching set regular expressions."
+        putidx $idx "                                    Valid actions are add, del, list"
         putidx $idx "    \002Examples\002:"
         putidx $idx "     TLD ban reason: .ripeconfig bantopreason Hello %nick%, TLD '%tld%' is not allowed here"
         putidx $idx "     Ban reason: .ripeconfig banreason Sorry %country%(%tld%) is not allowed in here"
+        putidx $idx "     Ban reason for TLD no: .ripeconfig banreason .no Sorry %country%(%tld%) is not allowed in here"
         putidx $idx "     Enable msgcmds: .ripeconfig msgcmds on"
         putidx $idx "     Disable msgcmds: .ripeconfig msgcmds off"
         putidx $idx "     Regexp to ignore hosts: .ripeconfig exclhost add (?i)^.*.users.undernet.org\$"
