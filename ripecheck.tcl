@@ -364,7 +364,7 @@ namespace eval ::ripecheck {
                                %ripe% $ripe \
                                %tld% $ripe \
                                %country% $country]
-            if {[info exists ::ripecheck::config(banreason!$ripe]} {
+            if {[info exists ::ripecheck::config(banreason!$ripe)]} {
                 set banreason [::ripecheck::templateReplace $::ripecheck::config(banreason!$ripe) $template]
             } elseif {[info exists ::ripecheck::config(banreason)]} {
                 set banreason [::ripecheck::templateReplace $::ripecheck::config(banreason) $template]
