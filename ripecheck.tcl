@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.6  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.6.1  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -162,7 +162,7 @@ bind msg -|- !ripehelp ::ripecheck::msgRipeHelp
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.6"
+    variable version "3.6.1"
 
     variable ipinfodb "http://api.ipinfodb.com/v2/ip_query.php?"
     variable geotool "http://geotool.stderr.eu/api"
@@ -261,11 +261,13 @@ namespace eval ::ripecheck {
         set iphost [string tolower $iphost]
 
         # Exclude following hostregexps from being scanned
-        foreach hostRegexp $::ripecheck::config(exclhost) {
-            ::ripecheck::debug "Testing exclude host regexp '$hostRegexp' for host '$iphost'"
-            if {[regexp "$hostRegexp" $iphost]} {
-                ::ripecheck::debug "Exclude host regexp '$hostRegexp' matched for host '$iphost'. No further action taken. "
-                return 1
+        if {[info exists ::ripecheck::config(exclhost)]} {
+            foreach hostRegexp $::ripecheck::config(exclhost) {
+                ::ripecheck::debug "Testing exclude host regexp '$hostRegexp' for host '$iphost'"
+                if {[regexp "$hostRegexp" $iphost]} {
+                    ::ripecheck::debug "Exclude host regexp '$hostRegexp' matched for host '$iphost'. No further action taken. "
+                    return 1
+                }
             }
         }
 
