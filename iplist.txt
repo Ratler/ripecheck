@@ -73,6 +73,8 @@
 151.64.0.0/11	whois.ripe.net
 151.96.0.0/14	whois.ripe.net
 151.100.0.0/16	whois.ripe.net
+153.128.0.0/9 whois.nic.ad.jp
+153.0.0.0/8 whois.apnic.net
 154.0.0.0/8     whois.afrinic.net
 155.232.0.0/13	whois.afrinic.net
 155.240.0.0/16	whois.afrinic.net
@@ -89,6 +91,7 @@
 163.195.0.0/16	whois.afrinic.net
 163.196.0.0/14	whois.afrinic.net
 163.200.0.0/14	whois.afrinic.net
+163.0.0.0/8 whois.apnic.net
 164.0.0.0/11	whois.ripe.net
 164.32.0.0/13	whois.ripe.net
 164.40.0.0/16	whois.ripe.net
@@ -101,6 +104,7 @@
 169.208.0.0/12	whois.apnic.net
 171.16.0.0/12	whois.ripe.net
 171.32.0.0/15	whois.ripe.net
+171.0.0.0/8 whois.apnic.net
 175.192.0.0/10 whois.nic.or.kr
 175.0.0.0/8     whois.apnic.net
 176.0.0.0/8 whois.ripe.net
