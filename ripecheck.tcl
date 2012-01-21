@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.6.1  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.6.2  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -81,7 +81,7 @@
 # on how to reproduce the issue.
 ###
 # LICENSE:
-# Copyright (C) 2006 - 2011  Stefan Wold <ratler@stderr.eu>
+# Copyright (C) 2006 - 2012  Stefan Wold <ratler@stderr.eu>
 #
 # This code comes with ABSOLUTELY NO WARRANTY
 #
@@ -162,7 +162,7 @@ bind msg -|- !ripehelp ::ripecheck::msgRipeHelp
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.6.1"
+    variable version "3.6.2"
 
     variable ipinfodb "http://api.ipinfodb.com/v2/ip_query.php?"
     variable geotool "http://geotool.stderr.eu/api"
