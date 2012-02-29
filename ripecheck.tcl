@@ -139,12 +139,14 @@ package require http
 # Bindings
 bind join - *!*@* ::ripecheck::onJoin
 bind dcc -|- testripecheck ::ripecheck::test
-bind dcc m|ov +ripetopdom ::ripecheck::addTopDom
-bind dcc m|ov -ripetopdom ::ripecheck::delTopDom
-bind dcc m|ov +ripetopresolv ::ripecheck::addTopResolve
-bind dcc m|ov -ripetopresolv ::ripecheck::delTopResolve
-bind dcc m|ov ripeconfig ::ripecheck::config
-bind dcc m|ov ripescan ::ripecheck::dccRipeScan
+bind dcc m|o +ripetopdom ::ripecheck::addTopDom
+bind dcc m|o -ripetopdom ::ripecheck::delTopDom
+bind dcc m|o +ripetopresolv ::ripecheck::addTopResolve
+bind dcc m|o -ripetopresolv ::ripecheck::delTopResolve
+bind dcc m|o ripeconfig ::ripecheck::config
+bind dcc m|o ripescan ::ripecheck::dccRipeScan
+bind dcc m|o ripetoggle ::ripecheck::dccToggle
+bind dcc m|o ripeclearban ::ripecheck::dccClearBan
 bind dcc -|- ripesettings ::ripecheck::settings
 bind dcc -|- help ::stderreu::help
 bind pub -|- !ripecheck ::ripecheck::pubRipeCheck
@@ -1379,6 +1381,91 @@ namespace eval ::ripecheck {
         ::ripecheck::writeSettings
     }
 
+    # Function to toggle ripecheck on and off. Also gives the ability to clear the ban list when toggled off.
+    proc dccToggle { nick idx arg } {
+        if {[llength [split $arg]] < 2} {
+            putdcc $idx "\002RIPECHECK\002: Missing arguments"
+            ::stderreu::ripetoggle $idx
+        }
+
+        set toggle [string tolower [lindex $arg 0]]
+        set channel [lindex $arg 1]
+        set clearBan [string tolower [lindex $arg 2]]
+
+        if {!($toggle == "on" || $toggle == "off")} {
+            putdcc $idx "\002RIPECHECK\002: Invalid toggle command! Allowed values are 'on' or 'off'"
+            return
+        }
+
+        # Iterate over all channels the bot is on
+        if {$channel == "*"} {
+            foreach chan [channels] {
+                ::ripecheck::toggleRipecheckChan $idx $toggle $chan
+                if {$clearBan == "-clearban" && $toggle == "off"} {
+                    ::ripecheck::clearChannelBanList $chan
+                    putdcc $idx "\002RIPECHECK\002: Bans set by ripecheck has been cleared from '$chan'"
+                }
+            }
+        } elseif {[validchan $channel]} {
+            ::ripecheck::toggleRipecheckChan $idx $toggle $channel
+            if {$clearBan == "-clearban" && $toggle == "off"} {
+                ::ripecheck::clearChannelBanList $channel
+                putdcc $idx "\002RIPECHECK\002: Bans set by ripecheck has been cleared from '$channel'"
+            }
+        } else {
+            putdcc $idx "\002RIPECHECK\002: Invalid channel '$channel'"
+        }
+    }
+
+    # Sets +/-ripecheck on channel
+    proc toggleRipecheckChan { idx toggle channel } {
+        if {$toggle == "on"} {
+            channel set $channel +ripecheck
+            putdcc $idx "\002RIPECHECK\002: Enabled (+) ripecheck for channel '$channel'"
+        } else {
+            channel set $channel -ripecheck
+            putdcc $idx "\002RIPECHECK\002: Disabled (-) ripecheck for channel '$channel'"
+        }
+    }
+
+    # Dcc function to clear bans set by ripecheck for supplied channel(s)
+    proc dccClearBan { nick idx arg } {
+        if {[llength [split $arg]] < 1} {
+            putdcc $idx "\002RIPECHECK\002: Missing channel argument"
+            ::stderreu::ripeclearban $idx
+            return
+        }
+
+        set channel [lindex $arg 0]
+
+        if {$channel == "*"} {
+            foreach chan [channels] {
+                ::ripecheck::clearChannelBanList $chan
+                putdcc $idx "\002RIPECHECK\002: Bans set by ripecheck has been cleared from '$chan'"
+            }
+        } elseif {[validchan $channel]} {
+            ::ripecheck::clearChannelBanList $channel
+            putdcc $idx "\002RIPECHECK\002: Bans set by ripecheck has been cleared from '$channel'"
+        } else {
+            putdcc $idx "\002RIPECHECK\002: Invalid channel"
+        }
+    }
+
+    # Function to clear all bans for specified channel set by ripecheck
+    proc clearChannelBanList { channel } {
+        foreach ban [banlist $channel] {
+            if {[lindex $ban 5] == "ripecheck"} {
+                set banmask [lindex $ban 0]
+
+                if {[killchanban $channel $banmask]} {
+                    ::ripecheck::debug "Removed ban '$banmask' from '$channel'"
+                } else {
+                    putlog "ripecheck: Failed to clear the ban list for '$channel'"
+                }
+            }
+        }
+    }
+
     # Add top domain to channel and write settings to file
     proc addTopDom { nick idx arg } {
         if {[llength [split $arg]] != 2} {
@@ -1515,7 +1602,7 @@ namespace eval ::ripecheck {
 namespace eval ::stderreu {
     variable helpfuncs
 
-    dict set ::stderreu::helpfuncs ripecheck [list ripecheck +ripetopresolv -ripetopresolv +ripetopdom -ripetopdom ripescan ripesettings ripeconfig testripecheck]
+    dict set ::stderreu::helpfuncs ripecheck [list ripecheck +ripetopresolv -ripetopresolv +ripetopdom -ripetopdom ripescan ripesettings ripeconfig ripetoggle ripeclearban testripecheck]
 
     proc ripecheck { idx } {
         putidx $idx "### \002ripecheck v$::ripecheck::version\002 by Ratler ###"; putidx $idx ""
@@ -1542,6 +1629,8 @@ namespace eval ::stderreu {
         ::stderreu::ripescan $idx
         ::stderreu::ripesettings $idx
         ::stderreu::ripeconfig $idx
+        ::stderreu::ripetoggle $idx
+        ::stderreu::ripeclearban $idx
         ::stderreu::testripecheck $idx
         putidx $idx "### \002help ripecheck\002"
         putidx $idx "    This help page you're currently viewing"
@@ -1607,10 +1696,24 @@ namespace eval ::stderreu {
         putidx $idx "    \002*NOTE*\002:"
         putidx $idx "      To completely remove an option from the configuration leave \[value\] blank, ie .ripeconfig msgcmds"
     }
+
+    proc ripetoggle { idx } {
+        putidx $idx "### \002ripetoggle <on|off> <#channel|*> \[-clearban\]\002"
+        putidx $idx "    Enable (+) or disable (-) ripecheck for one or all channels."
+        putidx $idx "    If the option '-clearban' is used with the toggle option 'off' all bans set by ripecheck will be removed"
+        putidx $idx "    Example: .ripetoggle off #channel -clearban"
+    }
+
+    proc ripeclearban { idx } {
+        putidx $idx "### \002ripeclearban <#channel|*>\002"
+        putidx $idx "    Clear all bans set by ripecheck for one or all channels"
+    }
+
     proc ripesettings { idx } {
         putidx $idx "### \002ripesettings\002"
         putidx $idx "    View current settings"
     }
+
     proc testripecheck { idx } {
         putidx $idx "### \002testripecheck <channel> <host>\002"
     }
@@ -1618,7 +1721,8 @@ namespace eval ::stderreu {
     proc ripecheckdefault { idx } {
         putidx $idx "\n\nripecheck v$::ripecheck::version commands:"
         putidx $idx "   \002+ripetopresolv    -ripetopresolv    +ripetopdom    -ripetopdom\002"
-        putidx $idx "   \002ripesettings      ripescan          ripeconfig     testripecheck\002"
+        putidx $idx "   \002ripesettings      ripescan          ripeconfig     ripetoggle\002"
+        putidx $idx "   \002ripeclearban      testripecheck\002"
     }
 
     proc help { hand idx arg } {
