@@ -590,7 +590,7 @@ namespace eval ::ripecheck {
             } else {
                 ::ripecheck::debug "Resolving..."
                 set htopdom [lindex [split $ip "."] end]
-                if {[lsearch -exact $::ripecheck::topresolv($channel) "*"] != -1 || [lsearch -exact $::ripecheck::topresolv($channel) $htopdom] != -1} {
+                if {[info exists ::ripecheck::topresolv($channel)] && ([lsearch -exact $::ripecheck::topresolv($channel) "*"] != -1 || [lsearch -exact $::ripecheck::topresolv($channel) $htopdom] != -1)} {
                     ::ripecheck::debug "Matched top resolve domain '$htopdom' for host '$ip' on '$channel'"
                     dnslookup $ip ::ripecheck::whoisFindServer $nick $channel "" testRipeCheck
                 } else {
