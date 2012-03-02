@@ -283,7 +283,8 @@ namespace eval ::ripecheck {
                                    %domain% $htopdom \
                                    %tld% $htopdom \
                                    %country% $country]
-                set bantime [channel get $channel ripecheck.bantime]
+                set bantime [::ripecheck::getBanTime $channel]
+
                 if {[info exists ::ripecheck::config(bantopreason!$htopdom)]} {
                     set banreason [::ripecheck::templateReplace $::ripecheck::config(bantopreason!$htopdom) $template]
                 } elseif {[info exists ::ripecheck::config(bantopreason)]} {
@@ -359,7 +360,7 @@ namespace eval ::ripecheck {
 
     proc ripecheck { ip host nick channel orghost ripe } {
         ::ripecheck::debug "Entering ripecheck()"
-        set bantime [channel get $channel ripecheck.bantime]
+        set bantime [::ripecheck::getBanTime $channel]
         if {(![channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] != -1) || \
             ([channel get $channel ripecheck.whitelist] && [lsearch -exact $::ripecheck::chanarr($channel) $ripe] == -1)} {
             ::ripecheck::debug "ripecheck() matched '$ripe'"
@@ -392,6 +393,15 @@ namespace eval ::ripecheck {
             set ::ripecheck::bancount($channel) [expr $::ripecheck::bancount($channel) + 1]
         }
         ::ripecheck::writeSettings
+    }
+
+    # Function that return bantime, if not set a default value of 120 minutes is returned
+    proc getBanTime { channel } {
+        set bantime [channel get $channel ripecheck.bantime]
+        if {$bantime == 0} {
+            set bantime 120
+        }
+        return $bantime
     }
 
     proc getBanCount { channel } {
