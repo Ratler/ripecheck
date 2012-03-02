@@ -282,6 +282,7 @@ namespace eval ::ripecheck {
                 set template [list %nick% $nick \
                                    %domain% $htopdom \
                                    %tld% $htopdom \
+                                   %TLD% [string toupper $htopdom] \
                                    %country% $country]
                 set bantime [::ripecheck::getBanTime $channel]
 
@@ -367,7 +368,9 @@ namespace eval ::ripecheck {
             set country [::ripecheck::getCountry $ripe]
             set template [list %nick% $nick \
                                %ripe% $ripe \
+                               %RIPE% [string toupper $ripe] \
                                %tld% $ripe \
+                               %TLD% [string toupper $ripe] \
                                %country% $country]
             if {[info exists ::ripecheck::config(banreason!$ripe)]} {
                 set banreason [::ripecheck::templateReplace $::ripecheck::config(banreason!$ripe) $template]
@@ -1700,7 +1703,8 @@ namespace eval ::stderreu {
         putidx $idx "     Regexp to ignore hosts: .ripeconfig exclhost add (?i)^.*.users.undernet.org\$"
         putidx $idx "     This regexp would match hosts not resolvable on UnderNET, when using (?i) the match is done with no case."
         putidx $idx "    \002Substitutional keywords, current keywords are\002:"
-        putidx $idx "     %tld% = Top level domain, ie .us, .se, .no"
+        putidx $idx "     %tld% = Top level domain (lower cased), ie .us, .se, .no"
+        putidx $idx "     %TLD% = Top level domain (upper cased), ie .US, .SE, .NO"
         putidx $idx "     %country% = Country name"
         putidx $idx "     %nick% = Nickname of the user being banned"
         putidx $idx "    \002*NOTE*\002:"
