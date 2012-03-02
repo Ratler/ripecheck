@@ -293,7 +293,7 @@ namespace eval ::ripecheck {
                 } else {
                     set banreason "RIPE Country Check: Top domain .$htopdom is banned."
                 }
-                putlog "ripecheck: Matched top domain '$htopdom' banning *!*@*.$htopdom on $channel for $bantime minute(s)"
+                putlog "ripecheck: Matched top domain '$htopdom' banned *!*@*.$htopdom on $channel for $bantime minute(s)"
                 if {![::ripecheck::isConfigEnabled logmode]} {
                     ::ripecheck::incrBanCount $channel
                     newchanban $channel "*!*@*.$htopdom" ripecheck $banreason $bantime
@@ -312,7 +312,7 @@ namespace eval ::ripecheck {
             return 0
         }
 
-        ::ripecheck::debug "onJoinRouter() - Ip: $ip, Iphost: $iphost, Orghost: $host"
+        ::ripecheck::debug "onJoinRouter() - ip: $ip, host: $iphost, original host: $host"
 
         # First we try geoIP if enabled
         if {[::ripecheck::isConfigEnabled geoban]} {
@@ -379,7 +379,7 @@ namespace eval ::ripecheck {
             } else {
                 set banreason "RIPE Country Check: Matched $country \[$ripe\]"
             }
-            putlog "ripecheck: Matched country $country \[$ripe\] banning $nick!$orghost on $channel for $bantime minute(s)"
+            putlog "ripecheck: Matched country $country \[$ripe\] banned $nick!$orghost on $channel for $bantime minute(s)"
             if {![::ripecheck::isConfigEnabled logmode]} {
                 # If we get a match always use the original host or we may get fooled by DNS
                 regexp ".+@(.+)" $orghost -> realhost
