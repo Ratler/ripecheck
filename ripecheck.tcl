@@ -1342,7 +1342,7 @@ namespace eval ::ripecheck {
                 set tld [lindex [split $value] 0]
                 if {[regexp {^\.} $tld]} {
                     set tld [string tolower [lindex [split $tld "."] 1]]
-                    set value [lrange [split $value] 1 end]
+                    set value [join [lrange [split $value] 1 end]
                     if {$value != ""} {
                         set ::ripecheck::config($option!$tld) $value
                         putdcc $idx "\002RIPECHECK\002: Option '$option \[$tld\]' set with the value '$value'"
