@@ -1,5 +1,5 @@
 #
-# ripecheck.tcl  Version: 3.7.0-dev  Author: Stefan Wold <ratler@stderr.eu>
+# ripecheck.tcl  Version: 3.7.0  Author: Stefan Wold <ratler@stderr.eu>
 ###
 # Info:
 # This script check unresolved ip addresses against a RIPE database
@@ -74,6 +74,7 @@
 #     the bot for a while. Workaround right now is to disable
 #     the new code by changing #ifdef HAVE_TCL_SETNOTIFIER 1 to
 #     #undef HAVE_TCL_SETNOTIFIER in config.h and recompile your eggdrop.
+# eggdrop v1.6.21 GNU/Linux with tcl 8.5 and tcllib 1.13
 ###
 # BUGS?!
 # If you discover any problems please send an e-mail
@@ -164,7 +165,7 @@ bind msg -|- !ripehelp ::ripecheck::msgRipeHelp
 
 namespace eval ::ripecheck {
     # Global variables
-    variable version "3.7.0-dev"
+    variable version "3.7.0"
 
     variable ipinfodb "http://api.ipinfodb.com/v2/ip_query.php?"
     variable geotool "http://geotool.stderr.eu/api"
