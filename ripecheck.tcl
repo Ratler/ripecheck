@@ -1240,6 +1240,25 @@ namespace eval ::ripecheck {
             foreach channel [array names ::ripecheck::chanarr] {
                 if {[validchan $channel]} {
                     putdcc $idx "### \002Channel:\002 $channel"
+                    putdcc $idx "    Ban time: [::ripecheck::getBanTime $channel] minute(s)"
+                    if {[channel get $channel ripecheck.topban]} {
+                        putdcc $idx "    Top domain ban mode: On"
+                    } else {
+                        putdcc $idx "    Top domain ban mode: Off"
+                    }
+                    if {[channel get $channel ripecheck.pubcmd]} {
+                        putdcc $idx "    Public commands: On"
+                    } else {
+                        putdcc $idx "    Public commands: Off"
+                    }
+                    if {[channel get $channel ripecheck.topchk]} {
+                        putdcc $idx "    Resolve top domains mode: On"
+                    } else {
+                        putdcc $idx "    Resolve top domains mode: Off"
+                    }
+                    if {[info exists ::ripecheck::topresolv($channel)]} {
+                        putdcc $idx "    \002Resolve top domains:\002 [join $::ripecheck::topresolv($channel) ", "]"
+                    }
                     if {[channel get $channel ripecheck.whitelist]} {
                         putdcc $idx "    Whitelist mode: On"
                         putdcc $idx "    \002Allowed domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
@@ -1247,23 +1266,21 @@ namespace eval ::ripecheck {
                         putdcc $idx "    Whitelist mode: Off"
                         putdcc $idx "    \002Banned domains:\002 [join $::ripecheck::chanarr($channel) ", "]"
                     }
-                    if {[info exists ::ripecheck::topresolv($channel)]} {
-                        putdcc $idx "    \002Resolve domains:\002 [join $::ripecheck::topresolv($channel) ", "]"
-                    }
                 }
             }
         } else {
             putdcc $idx "### No channel settings exist."
         }
+        putdcc $idx "### \002Global settings:\002"
         foreach option [lsort [array names ::ripecheck::config]] {
             if {$option == "exclhost"} {
-                putdcc $idx "### \002$option:\002 [join $::ripecheck::config($option) ", "]"
+                putdcc $idx "    \002$option:\002 [join $::ripecheck::config($option) ", "]"
             } elseif {[regexp {^banreason\!} $option] || [regexp {^bantopreason\!} $option]} {
                 set tld [lindex [split $option !] 1]
                 set option [lindex [split $option !] 0]
-                putdcc $idx "### \002$option \[$tld\]:\002 $::ripecheck::config($option!$tld)"
+                putdcc $idx "    \002$option \[$tld\]:\002 $::ripecheck::config($option!$tld)"
             } else {
-                putdcc $idx "### \002$option:\002 $::ripecheck::config($option)"
+                putdcc $idx "    \002$option:\002 $::ripecheck::config($option)"
             }
         }
     }
