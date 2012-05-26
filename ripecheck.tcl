@@ -1759,6 +1759,7 @@ namespace eval ::stderreu {
 
     proc help { hand idx arg } {
         set myarg [join $arg]
+        set found 0
         # First we test if arg is all to print eggdrop builtin commands,
         # then we call the help proc for each script loaded
         if {$myarg == "all"} {
@@ -1770,15 +1771,17 @@ namespace eval ::stderreu {
         } else {
             foreach key [dict keys $::stderreu::helpfuncs] {
                 foreach helpf [dict get $::stderreu::helpfuncs $key] {
-                    if { $helpf == $myarg } {
+                    if {[string match -nocase $myarg $helpf]} {
                         ::stderreu::$helpf $idx
-                        return 1
+                        set found 1
                     }
                 }
             }
         }
 
-        *dcc:help $hand $idx $myarg
+        if {$found == 0 || [regexp {\*} $myarg]} {
+            *dcc:help $hand $idx $myarg
+        }
 
         if {[llength [split $arg]] == 0} {
             foreach key [dict keys $::stderreu::helpfuncs] {
